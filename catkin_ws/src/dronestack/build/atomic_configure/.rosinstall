@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/cpsl/catkin_ws/src/dronestack/build/devel/setup.sh

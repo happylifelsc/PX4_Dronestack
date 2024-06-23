@@ -1,0 +1,56 @@
+[
+{
+  "directory": "/home/cpsl/catkin_ws/src/dronestack/build",
+  "command": "/usr/bin/c++ -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"dronestack\\\" -I/home/cpsl/catkin_ws/src/dronestack/build/devel/include -I/home/cpsl/catkin_ws/src/dronestack/include -I/home/cpsl/catkin_ws/src/dronestack/include/dronestack -I/home/cpsl/catkin_ws/devel/include -I/home/cpsl/catkin_ws/src/mavros/mavros_msgs/include -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -I/usr/include/eigen3 -g -o CMakeFiles/offb_node_hitl.dir/src/offb_node_hitl.cpp.o -c /home/cpsl/catkin_ws/src/dronestack/src/offb_node_hitl.cpp",
+  "file": "/home/cpsl/catkin_ws/src/dronestack/src/offb_node_hitl.cpp",
+  "output": "CMakeFiles/offb_node_hitl.dir/src/offb_node_hitl.cpp.o"
+},
+{
+  "directory": "/home/cpsl/catkin_ws/src/dronestack/build",
+  "command": "/usr/bin/c++ -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"dronestack\\\" -I/home/cpsl/catkin_ws/src/dronestack/build/devel/include -I/home/cpsl/catkin_ws/src/dronestack/include -I/home/cpsl/catkin_ws/src/dronestack/include/dronestack -I/home/cpsl/catkin_ws/devel/include -I/home/cpsl/catkin_ws/src/mavros/mavros_msgs/include -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -I/usr/include/eigen3 -g -o CMakeFiles/offb_node_sitl.dir/src/offb_node_sitl.cpp.o -c /home/cpsl/catkin_ws/src/dronestack/src/offb_node_sitl.cpp",
+  "file": "/home/cpsl/catkin_ws/src/dronestack/src/offb_node_sitl.cpp",
+  "output": "CMakeFiles/offb_node_sitl.dir/src/offb_node_sitl.cpp.o"
+},
+{
+  "directory": "/home/cpsl/catkin_ws/src/dronestack/build",
+  "command": "/usr/bin/c++ -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"dronestack\\\" -I/home/cpsl/catkin_ws/src/dronestack/build/devel/include -I/home/cpsl/catkin_ws/src/dronestack/include -I/home/cpsl/catkin_ws/src/dronestack/include/dronestack -I/home/cpsl/catkin_ws/devel/include -I/home/cpsl/catkin_ws/src/mavros/mavros_msgs/include -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -I/usr/include/eigen3 -g -o CMakeFiles/waypoint_nav_client.dir/src/offb_node_sitl_client.cpp.o -c /home/cpsl/catkin_ws/src/dronestack/src/offb_node_sitl_client.cpp",
+  "file": "/home/cpsl/catkin_ws/src/dronestack/src/offb_node_sitl_client.cpp",
+  "output": "CMakeFiles/waypoint_nav_client.dir/src/offb_node_sitl_client.cpp.o"
+},
+{
+  "directory": "/home/cpsl/catkin_ws/src/dronestack/build",
+  "command": "/usr/bin/c++ -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"dronestack\\\" -I/home/cpsl/catkin_ws/src/dronestack/build/devel/include -I/home/cpsl/catkin_ws/src/dronestack/include -I/home/cpsl/catkin_ws/src/dronestack/include/dronestack -I/home/cpsl/catkin_ws/devel/include -I/home/cpsl/catkin_ws/src/mavros/mavros_msgs/include -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -I/usr/include/eigen3 -g -o CMakeFiles/waypoint_nav_server.dir/src/offb_node_sitl_server.cpp.o -c /home/cpsl/catkin_ws/src/dronestack/src/offb_node_sitl_server.cpp",
+  "file": "/home/cpsl/catkin_ws/src/dronestack/src/offb_node_sitl_server.cpp",
+  "output": "CMakeFiles/waypoint_nav_server.dir/src/offb_node_sitl_server.cpp.o"
+},
+{
+  "directory": "/home/cpsl/catkin_ws/src/dronestack/build",
+  "command": "/usr/bin/c++ -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"dronestack\\\" -I/home/cpsl/catkin_ws/src/dronestack/build/devel/include -I/home/cpsl/catkin_ws/src/dronestack/include -I/home/cpsl/catkin_ws/src/dronestack/include/dronestack -I/home/cpsl/catkin_ws/devel/include -I/home/cpsl/catkin_ws/src/mavros/mavros_msgs/include -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -I/usr/include/eigen3 -g -o CMakeFiles/set_home_node.dir/src/set_home.cpp.o -c /home/cpsl/catkin_ws/src/dronestack/src/set_home.cpp",
+  "file": "/home/cpsl/catkin_ws/src/dronestack/src/set_home.cpp",
+  "output": "CMakeFiles/set_home_node.dir/src/set_home.cpp.o"
+},
+{
+  "directory": "/home/cpsl/catkin_ws/src/dronestack/build",
+  "command": "/usr/bin/c++ -DGTEST_CREATE_SHARED_LIBRARY=1 -Dgmock_EXPORTS -I/usr/src/googletest/googlemock/include -I/usr/src/googletest/googlemock -isystem /usr/src/googletest/googletest/include -isystem /usr/src/googletest/googletest -g -std=c++11 -fPIC -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -DGTEST_HAS_PTHREAD=1 -o gtest/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.o -c /usr/src/googletest/googlemock/src/gmock-all.cc",
+  "file": "/usr/src/googletest/googlemock/src/gmock-all.cc",
+  "output": "gtest/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.o"
+},
+{
+  "directory": "/home/cpsl/catkin_ws/src/dronestack/build",
+  "command": "/usr/bin/c++ -DGTEST_CREATE_SHARED_LIBRARY=1 -Dgmock_main_EXPORTS -isystem /usr/src/googletest/googlemock/include -isystem /usr/src/googletest/googlemock -isystem /usr/src/googletest/googletest/include -isystem /usr/src/googletest/googletest -g -std=c++11 -fPIC -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -DGTEST_HAS_PTHREAD=1 -o gtest/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.o -c /usr/src/googletest/googlemock/src/gmock_main.cc",
+  "file": "/usr/src/googletest/googlemock/src/gmock_main.cc",
+  "output": "gtest/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.o"
+},
+{
+  "directory": "/home/cpsl/catkin_ws/src/dronestack/build",
+  "command": "/usr/bin/c++ -DGTEST_CREATE_SHARED_LIBRARY=1 -Dgtest_EXPORTS -I/usr/src/googletest/googletest/include -I/usr/src/googletest/googletest -g -std=c++11 -fPIC -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o gtest/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o -c /usr/src/googletest/googletest/src/gtest-all.cc",
+  "file": "/usr/src/googletest/googletest/src/gtest-all.cc",
+  "output": "gtest/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o"
+},
+{
+  "directory": "/home/cpsl/catkin_ws/src/dronestack/build",
+  "command": "/usr/bin/c++ -DGTEST_CREATE_SHARED_LIBRARY=1 -Dgtest_main_EXPORTS -isystem /usr/src/googletest/googletest/include -isystem /usr/src/googletest/googletest -g -std=c++11 -fPIC -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=1 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -DGTEST_HAS_PTHREAD=1 -o gtest/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o -c /usr/src/googletest/googletest/src/gtest_main.cc",
+  "file": "/usr/src/googletest/googletest/src/gtest_main.cc",
+  "output": "gtest/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o"
+}
+]

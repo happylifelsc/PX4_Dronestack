@@ -1,0 +1,6 @@
+dronestack
+/home/cpsl/catkin_ws/devel/.private/dronestack/cmake.lock /home/cpsl/catkin_ws/devel/./cmake.lock
+/home/cpsl/catkin_ws/devel/.private/dronestack/lib/pkgconfig/dronestack.pc /home/cpsl/catkin_ws/devel/lib/pkgconfig/dronestack.pc
+/home/cpsl/catkin_ws/devel/.private/dronestack/lib/dronestack/offboard_ctrl /home/cpsl/catkin_ws/devel/lib/dronestack/offboard_ctrl
+/home/cpsl/catkin_ws/devel/.private/dronestack/share/dronestack/cmake/dronestackConfig.cmake /home/cpsl/catkin_ws/devel/share/dronestack/cmake/dronestackConfig.cmake
+/home/cpsl/catkin_ws/devel/.private/dronestack/share/dronestack/cmake/dronestackConfig-version.cmake /home/cpsl/catkin_ws/devel/share/dronestack/cmake/dronestackConfig-version.cmake

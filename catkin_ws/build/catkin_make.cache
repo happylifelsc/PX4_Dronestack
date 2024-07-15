@@ -1,2 +1,0 @@
-dronestack:mavros/libmavconn:mavros/mavros:mavros/mavros_extras:mavros/mavros_msgs:mavros/test_mavros:vicon_bridge
--DCATKIN_DEVEL_PREFIX=/home/cpsl/catkin_ws/devel -DCMAKE_INSTALL_PREFIX=/home/cpsl/catkin_ws/install -G Unix Makefiles

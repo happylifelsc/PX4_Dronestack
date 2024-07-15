@@ -65,8 +65,6 @@ int TAP_ESC::init()
 		return ret;
 	}
 
-	_esc_feedback_pub.advertise();
-
 	/* Respect boot time required by the ESC FW */
 	hrt_abstime uptime_us = hrt_absolute_time();
 

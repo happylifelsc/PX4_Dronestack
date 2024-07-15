@@ -157,11 +157,10 @@ void MagBiasEstimator::Run()
 		bool updated = false;
 
 		for (int mag_index = 0; mag_index < MAX_SENSOR_COUNT; mag_index++) {
-			int sensor_mag_updates = 0;
 			sensor_mag_s sensor_mag;
 
-			while ((sensor_mag_updates < sensor_mag_s::ORB_QUEUE_LENGTH) && _sensor_mag_subs[mag_index].update(&sensor_mag)) {
-				sensor_mag_updates++;
+			while (_sensor_mag_subs[mag_index].update(&sensor_mag)) {
+
 				updated = true;
 
 				// apply existing mag calibration

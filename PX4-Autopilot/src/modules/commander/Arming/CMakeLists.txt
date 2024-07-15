@@ -32,3 +32,4 @@
 ############################################################################
 
 add_subdirectory(ArmAuthorization)
+add_subdirectory(ArmStateMachine)

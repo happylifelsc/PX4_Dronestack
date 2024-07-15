@@ -1,12 +1,12 @@
 /*************************************************************************//**
  * @file
- * @brief       This file is part of the AFBR-S50 hardware API.
- * @details     This file provides generic definitions belonging to all
- *              devices from the AFBR-S50 product family.
+ * @brief    	This file is part of the AFBR-S50 hardware API.
+ * @details		This file provides generic definitions belonging to all
+ * 				devices from the AFBR-S50 product family.
  *
  * @copyright
  *
- * Copyright (c) 2023, Broadcom Inc.
+ * Copyright (c) 2021, Broadcom Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,6 @@
 
 #ifndef ARGUS_DEF_H
 #define ARGUS_DEF_H
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*!***************************************************************************
  * Include files
@@ -55,41 +52,36 @@ extern "C" {
 #include <string.h>
 
 /*!***************************************************************************
- * @addtogroup  argus_api
+ * @addtogroup 	argusapi
  * @{
  *****************************************************************************/
 
 /*!***************************************************************************
- * @brief   Maximum number of phases per measurement cycle.
- * @details The actual phase number is defined in the register configuration.
- *          However the software does only support a fixed value of 4 yet.
+ * @brief	Maximum number of phases per measurement cycle.
+ * @details	The actual phase number is defined in the register configuration.
+ * 			However the software does only support a fixed value of 4 yet.
  *****************************************************************************/
-#define ARGUS_PHASECOUNT 4
+#define ARGUS_PHASECOUNT 4U
 
 /*!***************************************************************************
- * @brief   The device pixel field size in x direction (long edge).
+ * @brief	The device pixel field size in x direction (long edge).
  *****************************************************************************/
-#define ARGUS_PIXELS_X  8
+#define ARGUS_PIXELS_X	8U
 
 /*!***************************************************************************
- * @brief   The device pixel field size in y direction (short edge).
+ * @brief	The device pixel field size in y direction (short edge).
  *****************************************************************************/
-#define ARGUS_PIXELS_Y  4
+#define ARGUS_PIXELS_Y	4U
 
 /*!***************************************************************************
- * @brief   The total device pixel count.
+ * @brief	The total device pixel count.
  *****************************************************************************/
-#define ARGUS_PIXELS    ((ARGUS_PIXELS_X)*(ARGUS_PIXELS_Y))
+#define ARGUS_PIXELS	((ARGUS_PIXELS_X)*(ARGUS_PIXELS_Y))
 
 /*!***************************************************************************
- * @brief   A flag indicating that the device is a extended range device.
+ * @brief	The AFBR-S50 module types.
  *****************************************************************************/
-#define MODULE_EXTENDED_FLAG (0x40U)
-
-/*!***************************************************************************
- * @brief   The AFBR-S50 module types.
- *****************************************************************************/
-typedef enum argus_module_version_t {
+typedef enum {
 	/*! No device connected or not recognized. */
 	MODULE_NONE = 0,
 
@@ -97,80 +89,54 @@ typedef enum argus_module_version_t {
 	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
 	 *  medium range 3D applications.
 	 *  Version 1 - legacy version! */
-	AFBR_S50MV85G_V1 = 0x01,
+	AFBR_S50MV85G_V1 = 1,
 
 	/*! AFBR-S50MV85G: an ADS0032 based multi-pixel range finder device
 	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
 	 *  medium range 3D applications.
 	 *  Version 2 - legacy version! */
-	AFBR_S50MV85G_V2 = 0x02,
+	AFBR_S50MV85G_V2 = 2,
+
+	/*! AFBR-S50MV85G: an ADS0032 based multi-pixel range finder device
+	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
+	 *  medium range 3D applications.
+	 *  Version 7 - current version! */
+	AFBR_S50MV85G_V3 = 7,
 
 	/*! AFBR-S50LV85D: an ADS0032 based multi-pixel range finder device
 	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
 	 *  long range 1D applications.
 	 *  Version 1 - current version! */
-	AFBR_S50LV85D_V1 = 0x03,
+	AFBR_S50LV85D_V1 = 3,
 
 	/*! AFBR-S50MV68B: an ADS0032 based multi-pixel range finder device
 	 *  w/ 4x8 pixel matrix and red, 680 nm, laser source for
 	 *  medium range 1D applications.
 	 *  Version 1 - current version! */
-	AFBR_S50MV68B_V1 = 0x04,
+	AFBR_S50MV68B_V1 = 4,
 
 	/*! AFBR-S50MV85I: an ADS0032 based multi-pixel range finder device
 	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
 	 *  medium range 3D applications.
 	 *  Version 1 - current version! */
-	AFBR_S50MV85I_V1 = 0x05,
+	AFBR_S50MV85I_V1 = 5,
 
 	/*! AFBR-S50MV85G: an ADS0032 based multi-pixel range finder device
 	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
 	 *  short range 3D applications.
 	 *  Version 1 - current version! */
-	AFBR_S50SV85K_V1 = 0x06,
+	AFBR_S50SV85K_V1 = 6,
 
-	/*! AFBR-S50MV85G: an ADS0032 based multi-pixel range finder device
-	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
-	 *  medium range 3D applications.
-	 *  Version 3 - current version! */
-	AFBR_S50MV85G_V3 = 0x07,
 
-	/*! AFBR-S50LX85D: an ADS0032 based multi-pixel range finder device
-	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
-	 *  extended long range 1D applications.
-	 *  Version 1 - current version! */
-	AFBR_S50LX85D_V1 = AFBR_S50LV85D_V1 | MODULE_EXTENDED_FLAG,
-
-	/*! AFBR-S50MX68B: an ADS0032 based multi-pixel range finder device
-	 *  w/ 4x8 pixel matrix and red, 680 nm, laser source for
-	 *  extended medium range 1D applications.
-	 *  Version 1 - current version! */
-	AFBR_S50MX68B_V1 = AFBR_S50MV68B_V1 | MODULE_EXTENDED_FLAG,
-
-	/*! AFBR-S50MX85I: an ADS0032 based multi-pixel range finder device
-	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
-	 *  extended medium range 3D applications.
-	 *  Version 1 - current version! */
-	AFBR_S50MX85I_V1 = AFBR_S50MV85I_V1 | MODULE_EXTENDED_FLAG,
-
-	/*! AFBR-S50MX85G: an ADS0032 based multi-pixel range finder device
-	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
-	 *  extended short range 3D applications.
-	 *  Version 1 - current version! */
-	AFBR_S50SX85K_V1 = AFBR_S50SV85K_V1 | MODULE_EXTENDED_FLAG,
-
-	/*! AFBR-S50MX85G: an ADS0032 based multi-pixel range finder device
-	 *  w/ 4x8 pixel matrix and infra-red, 850 nm, laser source for
-	 *  extended medium range 3D applications.
-	 *  Version 1 - current version! */
-	AFBR_S50MX85G_V1 = AFBR_S50MV85G_V3 | MODULE_EXTENDED_FLAG,
+	/*! Reserved for future extensions. */
+	Reserved = 0x3F
 
 } argus_module_version_t;
 
 /*!***************************************************************************
- * @brief   The AFBR-S50 laser configurations.
+ * @brief	The AFBR-S50 laser configurations.
  *****************************************************************************/
-typedef enum argus_laser_type_t {
+typedef enum {
 	/*! No laser connected. */
 	LASER_NONE = 0,
 
@@ -186,15 +152,12 @@ typedef enum argus_laser_type_t {
 	/*! 850nm Infra-Red VCSEL v2 /w extended mode. */
 	LASER_H_V2X = 4,
 
-	/*! 680nm Red VCSEL v1 w/ extended mode. */
-	LASER_R_V1X = 5,
-
 } argus_laser_type_t;
 
 /*!***************************************************************************
- * @brief   The AFBR-S50 chip versions.
+ * @brief	The AFBR-S50 chip versions.
  *****************************************************************************/
-typedef enum argus_chip_version_t {
+typedef enum {
 	/*! No device connected or not recognized. */
 	ADS0032_NONE = 0,
 
@@ -215,102 +178,37 @@ typedef enum argus_chip_version_t {
 
 } argus_chip_version_t;
 
+/*!***************************************************************************
+ * @brief	The number of measurement modes with distinct configuration and
+ * 			calibration records.
+ *****************************************************************************/
+#define ARGUS_MODE_COUNT (2)
 
 /*!***************************************************************************
- * @brief   The measurement mode flags.
- * @details The measurement mode flags that can be combined to a measurement
- *          mode, e.g. high speed short range mode. See #argus_mode_t for
- *          a complete list of available measurement modes.
- *
- *          - Bit 0: Short Range Mode
- *          - Bit 1: Long Range Mode
- *          - Bit 2: High Speed Mode
- *
- *          Note that the Long and Short Range Flags are mutual exclusive but
- *          any of those 2 must be set. Thus the value 0 is invalid!
- *          All other flags enhance the base configurations, e.g. the High
- *          Speed flag create the high speed mode of the selected base
- *          measurement mode.
+ * @brief	The measurement modes.
  *****************************************************************************/
-typedef enum argus_mode_flags_t {
-	/*! Measurement Mode Flag for Short Range Base Mode. */
-	ARGUS_MODE_FLAG_SHORT_RANGE = 0x01 << 0,
+typedef enum {
+	/*! Measurement Mode A: Long Range Mode. */
+	ARGUS_MODE_A = 1,
 
-	/*! Measurement Mode Flag for Long Range Base Mode. */
-	ARGUS_MODE_FLAG_LONG_RANGE = 0x01 << 1,
-
-	/*! Measurement Mode Flag for High Speed Mode. */
-	ARGUS_MODE_FLAG_HIGH_SPEED = 0x01 << 2
-
-} argus_mode_flags_t;
-
-/*!***************************************************************************
- * @brief   The measurement modes.
- * @details The measurement modes are composed in binary from of the flags
- *          define in #argus_mode_flags_t, i.e. each bit has a special meaning:
- *
- *          - Bit 0: Short Range Mode
- *          - Bit 1: Long Range Mode
- *          - Bit 2: High Speed Mode
- *
- *          Note that the Long and Short Range Bits are mutual exclusive but any
- *          of those 2 must be set. Thus the value 0 is invalid!
- *****************************************************************************/
-typedef enum argus_mode_t {
-	/*! Measurement Mode: Short Range Mode. */
-	ARGUS_MODE_SHORT_RANGE =                                // = 0x01 = 0b0001
-		ARGUS_MODE_FLAG_SHORT_RANGE,
-
-	/*! Measurement Mode: Long Range Mode. */
-	ARGUS_MODE_LONG_RANGE =                                 // = 0x02 = 0b0010
-		ARGUS_MODE_FLAG_LONG_RANGE,
-
-	/*! Measurement Mode: High Speed Short Range Mode. */
-	ARGUS_MODE_HIGH_SPEED_SHORT_RANGE =                     // = 0x05 = 0b0101
-		ARGUS_MODE_FLAG_SHORT_RANGE | ARGUS_MODE_FLAG_HIGH_SPEED,
-
-	/*! Measurement Mode: High Speed Long Range Mode. */
-	ARGUS_MODE_HIGH_SPEED_LONG_RANGE =                      // = 0x06 = 0b0110
-		ARGUS_MODE_FLAG_LONG_RANGE | ARGUS_MODE_FLAG_HIGH_SPEED,
+	/*! Measurement Mode B: Short Range Mode. */
+	ARGUS_MODE_B = 2,
 
 } argus_mode_t;
 
-/*! The data structure for the API representing a AFBR-S50 device instance. */
-typedef struct argus_hnd_t argus_hnd_t;
-
 /*!***************************************************************************
- * @brief   Measurement Ready API callback function.
- *
- * @details Invoked by the API whenever a measurement cycle is finished and
- *          new data is ready to be evaluated via the #Argus_EvaluateData API
- *          function.
- *          The callback is passed to the API via the #Argus_TriggerMeasurement
- *          or #Argus_StartMeasurementTimer API functions.
- *          The API passes the status of the currently finished measurement
- *          cycle to the callback as first parameters. The second parameter is
- *          a pointer the API handle structure. The latter is used to identify
- *          the calling instance of the API in case of multiple devices.
- *          Further it can be passed to the #Argus_EvaluateData function.
- *
- * @warning Since the callback is called from an interrupt context, the
- *          callback execution must return as fast as possible. The usual task
- *          in the callback is to post an event to the main thread to inform it
- *          about the new data and that is must call the #Argus_EvaluateData
- *          function.
- *
- * @param   status The module status that caused the callback. #STATUS_OK if
- *                 everything was as expected.
- *
- * @param   hnd The API handle pointer to the calling instance. Identifies the
- *              instance of the API that was invoking the callback and thus the
- *              instance that must call the #Argus_EvaluateData for.
- *
- * @return  Returns the \link #status_t status\endlink (#STATUS_OK on success).
+ * @brief	Generic API callback function.
+ * @details	Invoked by the API. The content of the abstract data pointer
+ * 			depends upon the context.
+ * @param	status The module status that caused the callback. #STATUS_OK if
+ * 				   everything was as expected.
+ * @param	data An abstract pointer to an user defined data. This will usually
+ * 				 be passed to the function that also takes the callback as an
+ * 				 parameter. Otherwise it has a special meaning such as
+ * 				 configuration or calibration data.
+ * @return 	Returns the \link #status_t status\endlink (#STATUS_OK on success).
  *****************************************************************************/
-typedef status_t (*argus_measurement_ready_callback_t)(status_t status, argus_hnd_t *hnd);
+typedef status_t (*argus_callback_t)(status_t status, void *data);
 
 /*! @} */
-#ifdef __cplusplus
-} // extern "C"
-#endif
 #endif /* ARGUS_DEF_H */

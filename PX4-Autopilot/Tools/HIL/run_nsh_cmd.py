@@ -39,7 +39,7 @@ def print_line(line):
         print('{0}'.format(line), end='')
 
 
-def do_nsh_cmd(port_url, baudrate, cmd, ignore_stdout_errors=False):
+def do_nsh_cmd(port_url, baudrate, cmd):
     ser = serial.serial_for_url(url=port_url, baudrate=baudrate, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1, xonxoff=False, rtscts=False, dsrdtr=False, inter_byte_timeout=1)
 
     timeout_start = time.monotonic()
@@ -106,7 +106,7 @@ def do_nsh_cmd(port_url, baudrate, cmd, ignore_stdout_errors=False):
             if success_cmd in serial_line:
                 sys.exit(return_code)
             else:
-                if "ERROR " in serial_line and not ignore_stdout_errors:
+                if "ERROR " in serial_line:
                     return_code = -1
 
                 print_line(serial_line)
@@ -148,8 +148,6 @@ def main():
     parser.add_argument('--device', "-d", nargs='?', default=default_device, help='', required=device_required)
     parser.add_argument("--baudrate", "-b", dest="baudrate", type=int, help="serial port baud rate (default=57600)", default=57600)
     parser.add_argument("--cmd", "-c", dest="cmd", help="Command to run")
-    parser.add_argument('--ignore-stdout-errors', action='store_true',
-                        help='Ignore errors printed to stdout')
     args = parser.parse_args()
 
     tmp_file = "{0}/pyserial_spy_file.txt".format(tempfile.gettempdir())
@@ -157,7 +155,7 @@ def main():
 
     print("pyserial url: {0}".format(port_url))
 
-    do_nsh_cmd(port_url, args.baudrate, args.cmd, args.ignore_stdout_errors)
+    do_nsh_cmd(port_url, args.baudrate, args.cmd)
 
 if __name__ == "__main__":
    main()

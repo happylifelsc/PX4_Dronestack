@@ -6,6 +6,13 @@
 #
 
 #
+# Start the attitude and position estimator.
+#
+ekf2 start &
+#attitude_estimator_q start
+#local_position_estimator start
+
+#
 # Start Control Allocator
 #
 control_allocator start
@@ -14,6 +21,7 @@ control_allocator start
 # Start attitude controllers.
 #
 rover_pos_control start
+
 
 #
 # Start Land Detector.

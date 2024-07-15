@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019-2023 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2019 ECL Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -183,7 +183,7 @@ TEST_F(EkfFusionLogicTest, fallbackFromGpsToFlow)
 	const float max_ground_distance = 50.f;
 	_ekf->set_optical_flow_limits(max_flow_rate, min_ground_distance, max_ground_distance);
 	_sensor_simulator.startFlow();
-	_sensor_simulator.startRangeFinder();
+	_sensor_simulator.startFlow();
 	_ekf_wrapper.enableFlowFusion();
 
 	_ekf->set_in_air_status(true);
@@ -195,15 +195,15 @@ TEST_F(EkfFusionLogicTest, fallbackFromGpsToFlow)
 
 	// WHEN: GPS data stops
 	_sensor_simulator.stopGps();
-	_sensor_simulator.runSeconds(10);
+	_sensor_simulator.runSeconds(2);
 
-	// THEN: GNSS fusion stops after a timing out
+	// THEN: immediately switch to flow only
 	EXPECT_FALSE(_ekf_wrapper.isIntendingGpsFusion());
 	EXPECT_TRUE(_ekf_wrapper.isIntendingFlowFusion());
 
-	// BUT WHEN: GPS starts after passing the checks again
+	// BUT WHEN: GPS starts again
 	_sensor_simulator.startGps();
-	_sensor_simulator.runSeconds(6);
+	_sensor_simulator.runSeconds(1);
 
 	// THEN: use it again
 	EXPECT_TRUE(_ekf_wrapper.isIntendingGpsFusion());

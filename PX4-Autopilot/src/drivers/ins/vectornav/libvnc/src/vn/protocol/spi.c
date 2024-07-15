@@ -2,6 +2,8 @@
 #include <string.h>
 #include "vn/util.h"
 
+//#define UNUSED(x) (void)(sizeof(x))
+
 VnError VnSpi_genGenericCommand(
 	char cmdId,
 	char* buffer,

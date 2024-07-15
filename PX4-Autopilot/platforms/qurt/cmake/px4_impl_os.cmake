@@ -124,7 +124,13 @@ endfunction()
 #
 function(px4_os_add_flags)
 
+	set(DSPAL_ROOT platforms/qurt/dspal)
 	include_directories(
+		${DSPAL_ROOT}/include
+		${DSPAL_ROOT}/sys
+		${DSPAL_ROOT}/sys/sys
+
+		platforms/posix/include
 		platforms/qurt/include
 	)
 

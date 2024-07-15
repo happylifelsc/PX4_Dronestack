@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2015-2023 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2015-2020 Estimation and Control Library (ECL). All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name PX4 nor the names of its contributors may be
+ * 3. Neither the name ECL nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -63,15 +63,16 @@
 
 #include "common.h"
 #include "RingBuffer.h"
-#include "imu_down_sampler/imu_down_sampler.hpp"
-#include "output_predictor/output_predictor.h"
+#include "imu_down_sampler.hpp"
+#include "utils.hpp"
+#include "output_predictor.h"
 
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-# include "aid_sources/range_finder/range_finder_consistency_check.hpp"
-# include "aid_sources/range_finder/sensor_range_finder.hpp"
+# include "range_finder_consistency_check.hpp"
+# include "sensor_range_finder.hpp"
 #endif // CONFIG_EKF2_RANGE_FINDER
 
-#include <lib/atmosphere/atmosphere.h>
+#include <lib/geo/geo.h>
 #include <matrix/math.hpp>
 #include <mathlib/mathlib.h>
 #include <mathlib/math/filter/AlphaFilter.hpp>
@@ -81,33 +82,23 @@ using namespace estimator;
 class EstimatorInterface
 {
 public:
+	// ask estimator for sensor data collection decision and do any preprocessing if required, returns true if not defined
+	virtual bool collect_gps(const gpsMessage &gps) = 0;
+
 	void setIMUData(const imuSample &imu_sample);
 
-#if defined(CONFIG_EKF2_GNSS)
-	void setGpsData(const gnssSample &gnss_sample);
-
-	const gnssSample &get_gps_sample_delayed() const { return _gps_sample_delayed; }
-
-	float gps_horizontal_position_drift_rate_m_s() const { return _gps_horizontal_position_drift_rate_m_s; }
-	float gps_vertical_position_drift_rate_m_s() const { return _gps_vertical_position_drift_rate_m_s; }
-	float gps_filtered_horizontal_velocity_m_s() const { return _gps_filtered_horizontal_velocity_m_s; }
-
-#endif // CONFIG_EKF2_GNSS
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
 	void setMagData(const magSample &mag_sample);
-#endif // CONFIG_EKF2_MAGNETOMETER
 
-#if defined(CONFIG_EKF2_BAROMETER)
+	void setGpsData(const gpsMessage &gps);
+
 	void setBaroData(const baroSample &baro_sample);
-#endif // CONFIG_EKF2_BAROMETER
 
 #if defined(CONFIG_EKF2_AIRSPEED)
 	void setAirspeedData(const airspeedSample &airspeed_sample);
 #endif // CONFIG_EKF2_AIRSPEED
 
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-	void setRangeData(const estimator::sensor::rangeSample &range_sample);
+	void setRangeData(const rangeSample &range_sample);
 
 	// set sensor limitations reported by the rangefinder
 	void set_rangefinder_limits(float min_distance, float max_distance)
@@ -115,11 +106,11 @@ public:
 		_range_sensor.setLimits(min_distance, max_distance);
 	}
 
-	const estimator::sensor::rangeSample &get_rng_sample_delayed() { return *(_range_sensor.getSampleAddress()); }
+	const rangeSample &get_rng_sample_delayed() { return *(_range_sensor.getSampleAddress()); }
 #endif // CONFIG_EKF2_RANGE_FINDER
 
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
-	// if optical flow sensor gyro delta angles are not available, set gyro_rate vector fields to NaN and the EKF will use its internal gyro data instead
+	// if optical flow sensor gyro delta angles are not available, set gyro_xyz vector fields to NaN and the EKF will use its internal delta angle data instead
 	void setOpticalFlowData(const flowSample &flow);
 
 	// set sensor limitations reported by the optical flow sensor
@@ -150,34 +141,16 @@ public:
 	void set_in_air_status(bool in_air)
 	{
 		if (!in_air) {
-			if (_control_status.flags.in_air) {
-				ECL_DEBUG("no longer in air");
-			}
-
 			_time_last_on_ground_us = _time_delayed_us;
 
 		} else {
-			if (!_control_status.flags.in_air) {
-				ECL_DEBUG("in air");
-			}
-
 			_time_last_in_air = _time_delayed_us;
 		}
 
 		_control_status.flags.in_air = in_air;
 	}
 
-	void set_vehicle_at_rest(bool at_rest)
-	{
-		if (!_control_status.flags.vehicle_at_rest && at_rest) {
-			ECL_DEBUG("at rest");
-
-		} else if (_control_status.flags.vehicle_at_rest && !at_rest) {
-			ECL_DEBUG("no longer at rest");
-		}
-
-		_control_status.flags.vehicle_at_rest = at_rest;
-	}
+	void set_vehicle_at_rest(bool at_rest) { _control_status.flags.vehicle_at_rest = at_rest; }
 
 	// return true if the attitude is usable
 	bool attitude_valid() const { return _control_status.flags.tilt_align; }
@@ -234,47 +207,25 @@ public:
 	int getNumberOfActiveVerticalVelocityAidingSources() const;
 
 	const matrix::Quatf &getQuaternion() const { return _output_predictor.getQuaternion(); }
-	float getUnaidedYaw() const { return _output_predictor.getUnaidedYaw(); }
 	Vector3f getVelocity() const { return _output_predictor.getVelocity(); }
 	const Vector3f &getVelocityDerivative() const { return _output_predictor.getVelocityDerivative(); }
 	float getVerticalPositionDerivative() const { return _output_predictor.getVerticalPositionDerivative(); }
 	Vector3f getPosition() const { return _output_predictor.getPosition(); }
 	const Vector3f &getOutputTrackingError() const { return _output_predictor.getOutputTrackingError(); }
 
-#if defined(CONFIG_EKF2_MAGNETOMETER)
 	// Get the value of magnetic declination in degrees to be saved for use at the next startup
 	// Returns true when the declination can be saved
 	// At the next startup, set param.mag_declination_deg to the value saved
-	bool get_mag_decl_deg(float &val) const
+	bool get_mag_decl_deg(float *val) const
 	{
 		if (_NED_origin_initialised && (_params.mag_declination_source & GeoDeclinationMask::SAVE_GEO_DECL)) {
-			val = math::degrees(_mag_declination_gps);
+			*val = math::degrees(_mag_declination_gps);
 			return true;
 
 		} else {
 			return false;
 		}
 	}
-
-	bool get_mag_inc_deg(float &val) const
-	{
-		if (_NED_origin_initialised) {
-			val = math::degrees(_mag_inclination_gps);
-			return true;
-
-		} else {
-			return false;
-		}
-	}
-
-	void get_mag_checks(float &inc_deg, float &inc_ref_deg, float &strength_gs, float &strength_ref_gs) const
-	{
-		inc_deg = math::degrees(_mag_inclination);
-		inc_ref_deg = math::degrees(_mag_inclination_gps);
-		strength_gs = _mag_strength;
-		strength_ref_gs = _mag_strength_gps;
-	}
-#endif // CONFIG_EKF2_MAGNETOMETER
 
 	// get EKF mode status
 	const filter_control_status_u &control_status() const { return _control_status; }
@@ -283,15 +234,16 @@ public:
 	const filter_control_status_u &control_status_prev() const { return _control_status_prev; }
 	const decltype(filter_control_status_u::flags) &control_status_prev_flags() const { return _control_status_prev.flags; }
 
-	void enableControlStatusAuxGpos() { _control_status.flags.aux_gpos = true; }
-	void disableControlStatusAuxGpos() { _control_status.flags.aux_gpos = false; }
-
 	// get EKF internal fault status
 	const fault_status_u &fault_status() const { return _fault_status; }
 	const decltype(fault_status_u::flags) &fault_status_flags() const { return _fault_status.flags; }
 
 	const innovation_fault_status_u &innov_check_fail_status() const { return _innov_check_fail_status; }
 	const decltype(innovation_fault_status_u::flags) &innov_check_fail_status_flags() const { return _innov_check_fail_status.flags; }
+
+	const warning_event_status_u &warning_event_status() const { return _warning_events; }
+	const decltype(warning_event_status_u::flags) &warning_event_flags() const { return _warning_events.flags; }
+	void clear_warning_events() { _warning_events.value = 0; }
 
 	const information_event_status_u &information_event_status() const { return _information_events; }
 	const decltype(information_event_status_u::flags) &information_event_flags() const { return _information_events.flags; }
@@ -304,9 +256,16 @@ public:
 	const imuSample &get_imu_sample_delayed() const { return _imu_buffer.get_oldest(); }
 	const uint64_t &time_delayed_us() const { return _time_delayed_us; }
 
+	const gpsSample &get_gps_sample_delayed() const { return _gps_sample_delayed; }
+
 	const bool &global_origin_valid() const { return _NED_origin_initialised; }
 	const MapProjection &global_origin() const { return _pos_ref; }
-	float getEkfGlobalOriginAltitude() const { return PX4_ISFINITE(_gps_alt_ref) ? _gps_alt_ref : 0.f; }
+
+	void print_status();
+
+	float gps_horizontal_position_drift_rate_m_s() const { return _gps_horizontal_position_drift_rate_m_s; }
+	float gps_vertical_position_drift_rate_m_s() const { return _gps_vertical_position_drift_rate_m_s; }
+	float gps_filtered_horizontal_velocity_m_s() const { return _gps_filtered_horizontal_velocity_m_s; }
 
 	OutputPredictor &output_predictor() { return _output_predictor; };
 
@@ -343,16 +302,20 @@ protected:
 
 	OutputPredictor _output_predictor{};
 
+	// measurement samples capturing measurements on the delayed time horizon
+	gpsSample _gps_sample_delayed{};
+
+
 #if defined(CONFIG_EKF2_AIRSPEED)
-	airspeedSample _airspeed_sample_delayed {};
+	airspeedSample _airspeed_sample_delayed{};
 #endif // CONFIG_EKF2_AIRSPEED
 
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
-	extVisionSample _ev_sample_prev {};
+	extVisionSample _ev_sample_prev{};
 #endif // CONFIG_EKF2_EXTERNAL_VISION
 
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-	RingBuffer<sensor::rangeSample> *_range_buffer {nullptr};
+	RingBuffer<rangeSample> *_range_buffer{nullptr};
 	uint64_t _time_last_range_buffer_push{0};
 
 	sensor::SensorRangeFinder _range_sensor{};
@@ -360,7 +323,7 @@ protected:
 #endif // CONFIG_EKF2_RANGE_FINDER
 
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
-	RingBuffer<flowSample> 	*_flow_buffer {nullptr};
+	RingBuffer<flowSample> 	*_flow_buffer{nullptr};
 
 	flowSample _flow_sample_delayed{};
 
@@ -370,40 +333,28 @@ protected:
 	float _flow_max_distance{10.f};	///< maximum distance that the optical flow sensor can operate at (m)
 #endif // CONFIG_EKF2_OPTICAL_FLOW
 
-	float _air_density{atmosphere::kAirDensitySeaLevelStandardAtmos};		// air density (kg/m**3)
+	float _air_density{CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C};		// air density (kg/m**3)
 
 	bool _imu_updated{false};      // true if the ekf should update (completed downsampling process)
 	bool _initialised{false};      // true if the ekf interface instance (data buffering) is initialized
 
-	// Variables used to publish the WGS-84 location of the EKF local NED origin
 	bool _NED_origin_initialised{false};
+	float _gps_origin_eph{0.0f}; // horizontal position uncertainty of the GPS origin
+	float _gps_origin_epv{0.0f}; // vertical position uncertainty of the GPS origin
 	MapProjection _pos_ref{}; // Contains WGS-84 position latitude and longitude of the EKF origin
-	float _gps_alt_ref{NAN};		///< WGS-84 height (m)
-	float _gpos_origin_eph{0.0f}; // horizontal position uncertainty of the global origin
-	float _gpos_origin_epv{0.0f}; // vertical position uncertainty of the global origin
-
-#if defined(CONFIG_EKF2_GNSS)
-	RingBuffer<gnssSample> *_gps_buffer {nullptr};
-	uint64_t _time_last_gps_buffer_push{0};
-
-	gnssSample _gps_sample_delayed{};
-
-	float _gps_horizontal_position_drift_rate_m_s{NAN}; // Horizontal position drift rate (m/s)
-	float _gps_vertical_position_drift_rate_m_s{NAN};   // Vertical position drift rate (m/s)
-	float _gps_filtered_horizontal_velocity_m_s{NAN};   // Filtered horizontal velocity (m/s)
-
 	MapProjection _gps_pos_prev{}; // Contains WGS-84 position latitude and longitude of the previous GPS message
 	float _gps_alt_prev{0.0f};	// height from the previous GPS message (m)
-
-# if defined(CONFIG_EKF2_GNSS_YAW)
+#if defined(CONFIG_EKF2_GNSS_YAW)
+	float _gps_yaw_offset{0.0f};	// Yaw offset angle for dual GPS antennas used for yaw estimation (radians).
 	// innovation consistency check monitoring ratios
-	uint64_t _time_last_gnss_yaw_buffer_push{0};
-# endif // CONFIG_EKF2_GNSS_YAW
-#endif // CONFIG_EKF2_GNSS
+	AlphaFilter<float> _gnss_yaw_signed_test_ratio_lpf{0.1f}; // average signed test ratio used to detect a bias in the state
+	uint64_t _time_last_gps_yaw_buffer_push{0};
+#endif // CONFIG_EKF2_GNSS_YAW
 
 #if defined(CONFIG_EKF2_DRAG_FUSION)
-	RingBuffer<dragSample> *_drag_buffer {nullptr};
+	RingBuffer<dragSample> *_drag_buffer{nullptr};
 	dragSample _drag_down_sampled{};	// down sampled drag specific force data (filter prediction rate -> observation rate)
+	Vector2f _drag_test_ratio{};		// drag innovation consistency check ratio
 #endif // CONFIG_EKF2_DRAG_FUSION
 
 	innovation_fault_status_u _innov_check_fail_status{};
@@ -412,6 +363,10 @@ protected:
 	bool _vertical_position_deadreckon_time_exceeded{true};
 	bool _vertical_velocity_deadreckon_time_exceeded{true};
 
+	float _gps_horizontal_position_drift_rate_m_s{NAN}; // Horizontal position drift rate (m/s)
+	float _gps_vertical_position_drift_rate_m_s{NAN};   // Vertical position drift rate (m/s)
+	float _gps_filtered_horizontal_velocity_m_s{NAN};   // Filtered horizontal velocity (m/s)
+
 	uint64_t _time_last_on_ground_us{0};	///< last time we were on the ground (uSec)
 	uint64_t _time_last_in_air{0};		///< last time we were in air (uSec)
 
@@ -419,28 +374,26 @@ protected:
 	static constexpr uint8_t kBufferLengthDefault = 12;
 	RingBuffer<imuSample> _imu_buffer{kBufferLengthDefault};
 
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-	RingBuffer<magSample> *_mag_buffer {nullptr};
-	uint64_t _time_last_mag_buffer_push{0};
-#endif // CONFIG_EKF2_MAGNETOMETER
+	RingBuffer<gpsSample> *_gps_buffer{nullptr};
+	RingBuffer<magSample> *_mag_buffer{nullptr};
+	RingBuffer<baroSample> *_baro_buffer{nullptr};
 
 #if defined(CONFIG_EKF2_AIRSPEED)
-	RingBuffer<airspeedSample> *_airspeed_buffer {nullptr};
+	RingBuffer<airspeedSample> *_airspeed_buffer{nullptr};
 #endif // CONFIG_EKF2_AIRSPEED
 
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
-	RingBuffer<extVisionSample> *_ext_vision_buffer {nullptr};
+	RingBuffer<extVisionSample> *_ext_vision_buffer{nullptr};
 	uint64_t _time_last_ext_vision_buffer_push{0};
 #endif // CONFIG_EKF2_EXTERNAL_VISION
 #if defined(CONFIG_EKF2_AUXVEL)
-	RingBuffer<auxVelSample> *_auxvel_buffer {nullptr};
+	RingBuffer<auxVelSample> *_auxvel_buffer{nullptr};
 #endif // CONFIG_EKF2_AUXVEL
-	RingBuffer<systemFlagUpdate> *_system_flag_buffer {nullptr};
+	RingBuffer<systemFlagUpdate> *_system_flag_buffer{nullptr};
 
-#if defined(CONFIG_EKF2_BAROMETER)
-	RingBuffer<baroSample> *_baro_buffer {nullptr};
+	uint64_t _time_last_gps_buffer_push{0};
+	uint64_t _time_last_mag_buffer_push{0};
 	uint64_t _time_last_baro_buffer_push{0};
-#endif // CONFIG_EKF2_BAROMETER
 
 	uint64_t _time_last_gnd_effect_on{0};
 
@@ -449,17 +402,9 @@ protected:
 	// allocate data buffers and initialize interface variables
 	bool initialise_interface(uint64_t timestamp);
 
-	uint64_t _wmm_gps_time_last_checked{0};  // time WMM last checked
-	uint64_t _wmm_gps_time_last_set{0};      // time WMM last set
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-	float _mag_declination_gps {NAN};        // magnetic declination returned by the geo library using the last valid GPS position (rad)
+	float _mag_declination_gps{NAN};         // magnetic declination returned by the geo library using the last valid GPS position (rad)
 	float _mag_inclination_gps{NAN};	  // magnetic inclination returned by the geo library using the last valid GPS position (rad)
 	float _mag_strength_gps{NAN};	          // magnetic strength returned by the geo library using the last valid GPS position (T)
-
-	float _mag_inclination{NAN};
-	float _mag_strength{NAN};
-#endif // CONFIG_EKF2_MAGNETOMETER
 
 	// this is the current status of the filter control modes
 	filter_control_status_u _control_status{};
@@ -469,9 +414,10 @@ protected:
 
 	// these are used to record single frame events for external monitoring and should NOT be used for
 	// state logic becasue they will be cleared externally after being read.
+	warning_event_status_u _warning_events{};
 	information_event_status_u _information_events{};
 
-	unsigned _min_obs_interval_us{0}; // minimum time interval between observations that will guarantee data is not lost (usec)
+private:
 
 #if defined(CONFIG_EKF2_DRAG_FUSION)
 	void setDragData(const imuSample &imu);
@@ -484,5 +430,7 @@ protected:
 	void printBufferAllocationFailed(const char *buffer_name);
 
 	ImuDownSampler _imu_down_sampler{_params.filter_update_interval_us};
+
+	unsigned _min_obs_interval_us{0}; // minimum time interval between observations that will guarantee data is not lost (usec)
 };
 #endif // !EKF_ESTIMATOR_INTERFACE_H

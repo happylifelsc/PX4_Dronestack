@@ -66,7 +66,7 @@ public:
 
 	int init();
 
-	int get_reg(uint8_t addr, uint8_t *value);
+	uint8_t get_reg(uint8_t addr);
 	int get_reg_buf(uint8_t addr, uint8_t *buf, uint8_t len);
 	int set_reg(uint8_t value, uint8_t addr);
 	calibration_s *get_calibration(uint8_t addr);
@@ -95,16 +95,12 @@ int BMP388_SPI::init()
 	return SPI::init();
 };
 
-int BMP388_SPI::get_reg(uint8_t addr, uint8_t *value)
+uint8_t BMP388_SPI::get_reg(uint8_t addr)
 {
 	uint8_t cmd[2] = { (uint8_t)(addr | DIR_READ), 0}; //set MSB bit
-	int ret = transfer(&cmd[0], &cmd[0], 2);
+	transfer(&cmd[0], &cmd[0], 2);
 
-	if (ret == OK) {
-		*value = cmd[1];
-	}
-
-	return ret;
+	return cmd[1];
 }
 
 int BMP388_SPI::get_reg_buf(uint8_t addr, uint8_t *buf, uint8_t len)

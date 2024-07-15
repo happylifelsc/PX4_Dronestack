@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "Vector.hpp"
+#include "math.hpp"
 
 namespace matrix
 {

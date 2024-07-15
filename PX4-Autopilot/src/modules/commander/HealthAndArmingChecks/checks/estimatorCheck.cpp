@@ -99,14 +99,7 @@ void EstimatorChecks::checkAndReport(const Context &context, Report &reporter)
 		}
 	}
 
-	param_t param_ekf2_en_handle = param_find_no_notification("EKF2_EN");
-	int32_t param_ekf2_en = 0;
-
-	if (param_ekf2_en_handle != PARAM_INVALID) {
-		param_get(param_ekf2_en_handle, &param_ekf2_en);
-	}
-
-	if (missing_data && (param_ekf2_en == 1)) {
+	if (missing_data && _param_sys_mc_est_group.get() == 2) {
 		/* EVENT
 		 */
 		reporter.armingCheckFailure(required_groups, health_component_t::local_position_estimate,
@@ -124,7 +117,7 @@ void EstimatorChecks::checkAndReport(const Context &context, Report &reporter)
 
 	// set mode requirements
 	setModeRequirementFlags(context, pre_flt_fail_innov_heading, pre_flt_fail_innov_vel_horiz, lpos, vehicle_gps_position,
-				reporter.failsafeFlags(), reporter);
+				reporter.failsafeFlags());
 
 
 	lowPositionAccuracy(context, reporter, lpos);
@@ -191,17 +184,12 @@ void EstimatorChecks::checkEstimatorStatus(const Context &context, Report &repor
 		/* EVENT
 		 * @description
 		 * <profile name="dev">
-		 * Measured strength: {1:.3}, expected: {2:.3} ± <param>EKF2_MAG_CHK_STR</param>
-		 * Measured inclination: {3:.3}, expected: {4:.3} ± <param>EKF2_MAG_CHK_INC</param>
 		 * This check can be configured via <param>COM_ARM_MAG_STR</param> and <param>EKF2_MAG_CHECK</param> parameters.
 		 * </profile>
 		 */
-		reporter.armingCheckFailure<float, float, float, float>(required_groups_mag,
-				health_component_t::local_position_estimate,
-				events::ID("check_estimator_mag_interference"),
-				events::Log::Warning, "Strong magnetic interference",
-				estimator_status.mag_strength_gs, estimator_status.mag_strength_ref_gs,
-				estimator_status.mag_inclination_deg, estimator_status.mag_inclination_ref_deg);
+		reporter.armingCheckFailure(required_groups_mag, health_component_t::local_position_estimate,
+					    events::ID("check_estimator_mag_interference"),
+					    events::Log::Warning, "Strong magnetic interference");
 
 		if (reporter.mavlink_log_pub()) {
 			mavlink_log_critical(reporter.mavlink_log_pub(), "Preflight Fail: Strong magnetic interference");
@@ -300,9 +288,7 @@ void EstimatorChecks::checkEstimatorStatus(const Context &context, Report &repor
 					mavlink_log_warning(reporter.mavlink_log_pub(), "GNSS data fusion stopped\t");
 				}
 
-				// only report this failure as critical if not already in a local position invalid state
-				events::Log log_level = reporter.failsafeFlags().local_position_invalid ? events::Log::Info : events::Log::Error;
-				events::send(events::ID("check_estimator_gnss_fusion_stopped"), {log_level, events::LogInternal::Info},
+				events::send(events::ID("check_estimator_gnss_fusion_stopped"), {events::Log::Error, events::LogInternal::Info},
 					     "GNSS data fusion stopped");
 
 			} else if (!_gps_was_fused && ekf_gps_fusion) {
@@ -317,22 +303,6 @@ void EstimatorChecks::checkEstimatorStatus(const Context &context, Report &repor
 		}
 
 		_gps_was_fused = ekf_gps_fusion;
-
-		if (estimator_status.gps_check_fail_flags & (1 << estimator_status_s::GPS_CHECK_FAIL_SPOOFED)) {
-			if (!_gnss_spoofed) {
-				_gnss_spoofed = true;
-
-				if (reporter.mavlink_log_pub()) {
-					mavlink_log_critical(reporter.mavlink_log_pub(), "GNSS signal spoofed\t");
-				}
-
-				events::send(events::ID("check_estimator_gnss_warning_spoofing"), {events::Log::Alert, events::LogInternal::Info},
-					     "GNSS signal spoofed");
-			}
-
-		} else {
-			_gnss_spoofed = false;
-		}
 
 		if (!context.isArmed() && ekf_gps_check_fail) {
 			NavModes required_groups_gps = required_groups;
@@ -465,18 +435,6 @@ void EstimatorChecks::checkEstimatorStatus(const Context &context, Report &repor
 				reporter.armingCheckFailure(required_groups_gps, health_component_t::gps,
 							    events::ID("check_estimator_gps_vert_speed_drift_too_high"),
 							    log_level, "GPS Vertical Speed Drift too high");
-
-			} else if (estimator_status.gps_check_fail_flags & (1 << estimator_status_s::GPS_CHECK_FAIL_SPOOFED)) {
-				message = "Preflight%s: GPS signal spoofed";
-				/* EVENT
-				 * @description
-				 * <profile name="dev">
-				 * This check can be configured via <param>EKF2_GPS_CHECK</param> parameter.
-				 * </profile>
-				 */
-				reporter.armingCheckFailure(required_groups_gps, health_component_t::gps,
-							    events::ID("check_estimator_gps_spoofed"),
-							    log_level, "GPS signal spoofed");
 
 			} else {
 				if (!ekf_gps_fusion) {
@@ -623,7 +581,7 @@ void EstimatorChecks::checkEstimatorStatusFlags(const Context &context, Report &
 			}
 		}
 
-		if (estimator_status_flags.cs_gnss_yaw_fault) {
+		if (estimator_status_flags.cs_gps_yaw_fault) {
 			/* EVENT
 			 * @description
 			 * Land now
@@ -768,8 +726,7 @@ void EstimatorChecks::lowPositionAccuracy(const Context &context, Report &report
 
 void EstimatorChecks::setModeRequirementFlags(const Context &context, bool pre_flt_fail_innov_heading,
 		bool pre_flt_fail_innov_vel_horiz,
-		const vehicle_local_position_s &lpos, const sensor_gps_s &vehicle_gps_position, failsafe_flags_s &failsafe_flags,
-		Report &reporter)
+		const vehicle_local_position_s &lpos, const sensor_gps_s &vehicle_gps_position, failsafe_flags_s &failsafe_flags)
 {
 	// The following flags correspond to mode requirements, and are reported in the corresponding mode checks
 	vehicle_global_position_s gpos;
@@ -782,9 +739,7 @@ void EstimatorChecks::setModeRequirementFlags(const Context &context, bool pre_f
 
 	// run position and velocity accuracy checks
 	// Check if quality checking of position accuracy and consistency is to be performed
-	const float lpos_eph_threshold = (_param_com_pos_fs_eph.get() < 0) ? INFINITY : _param_com_pos_fs_eph.get();
-
-	float lpos_eph_threshold_relaxed = lpos_eph_threshold;
+	float lpos_eph_threshold_relaxed = _param_com_pos_fs_eph.get();
 
 	// Set the allowable position uncertainty based on combination of flight and estimator state
 	// When we are in a operator demanded position control mode and are solely reliant on optical flow,
@@ -807,52 +762,11 @@ void EstimatorChecks::setModeRequirementFlags(const Context &context, bool pre_f
 	}
 
 	failsafe_flags.global_position_invalid =
-		!checkPosVelValidity(now, xy_valid, gpos.eph, lpos_eph_threshold, gpos.timestamp,
+		!checkPosVelValidity(now, xy_valid, gpos.eph, _param_com_pos_fs_eph.get(), gpos.timestamp,
 				     _last_gpos_fail_time_us, !failsafe_flags.global_position_invalid);
 
-	// Additional warning if the system is about to enter position-loss failsafe after dead-reckoning period
-	const float eph_critical = 2.5f * _param_com_pos_fs_eph.get(); // threshold used to trigger the navigation failsafe
-	const float gpos_critical_warning_thrld = math::max(0.9f * eph_critical, math::max(eph_critical - 10.f, 0.f));
-
-	estimator_status_flags_s estimator_status_flags;
-
-	if (_estimator_status_flags_sub.copy(&estimator_status_flags)) {
-
-		// only do the following if the estimator status flags are recent (less than 5 seconds old)
-		if (now - estimator_status_flags.timestamp < 5_s) {
-			const bool dead_reckoning = estimator_status_flags.cs_inertial_dead_reckoning
-						    || estimator_status_flags.cs_wind_dead_reckoning;
-
-			if (!failsafe_flags.global_position_invalid
-			    && !_nav_failure_imminent_warned
-			    && gpos.eph > gpos_critical_warning_thrld
-			    && dead_reckoning) {
-				/* EVENT
-				* @description
-				* Switch to manual mode recommended.
-				*
-				* <profile name="dev">
-				* This warning is triggered when the position error estimate is 90% of (or only 10m below) <param>COM_POS_FS_EPH</param> parameter.
-				* </profile>
-				*/
-				events::send(events::ID("check_estimator_position_failure_imminent"), {events::Log::Error, events::LogInternal::Info},
-					     "Estimated position error is approaching the failsafe threshold");
-
-				if (reporter.mavlink_log_pub()) {
-					mavlink_log_critical(reporter.mavlink_log_pub(),
-							     "Estimated position error is approaching the failsafe threshold\t");
-				}
-
-				_nav_failure_imminent_warned = true;
-
-			} else if (!dead_reckoning) {
-				_nav_failure_imminent_warned = false;
-			}
-		}
-	}
-
 	failsafe_flags.local_position_invalid =
-		!checkPosVelValidity(now, xy_valid, lpos.eph, lpos_eph_threshold, lpos.timestamp,
+		!checkPosVelValidity(now, xy_valid, lpos.eph, _param_com_pos_fs_eph.get(), lpos.timestamp,
 				     _last_lpos_fail_time_us, !failsafe_flags.local_position_invalid);
 
 	failsafe_flags.local_position_invalid_relaxed =

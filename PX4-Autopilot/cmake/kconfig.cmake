@@ -25,7 +25,6 @@ set(COMMON_KCONFIG_ENV_SETTINGS
 	TOOLCHAIN=${CMAKE_TOOLCHAIN_FILE}
 	ARCHITECTURE=${CMAKE_SYSTEM_PROCESSOR}
 	ROMFSROOT=${config_romfs_root}
-	BASE_DEFCONFIG=${BOARD_CONFIG}
 )
 
 set(config_user_list)
@@ -53,15 +52,6 @@ if(EXISTS ${BOARD_DEFCONFIG})
 		)
 	endif()
 
-	if(${LABEL} MATCHES "allyes")
-		message(AUTHOR_WARNING "allyes build: allyes is for CI coverage and not for use in production")
-		execute_process(
-			COMMAND ${CMAKE_COMMAND} -E env ${COMMON_KCONFIG_ENV_SETTINGS}
-			${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/kconfig/allyesconfig.py
-			WORKING_DIRECTORY ${PX4_SOURCE_DIR}
-		)
-	endif()
-
     # Generate header file for C/C++ preprocessor
     execute_process(
 	COMMAND ${CMAKE_COMMAND} -E env ${COMMON_KCONFIG_ENV_SETTINGS}
@@ -83,18 +73,12 @@ if(EXISTS ${BOARD_DEFCONFIG})
 			# Find the value
 			string(REPLACE "${Name}=" "" Value ${NameAndValue})
 
-			# remove extra quotes
-			string(REPLACE "\"" "" Value ${Value})
+			if(Value)
+				# remove extra quotes
+				string(REPLACE "\"" "" Value ${Value})
 
-			# Set the variable
-			set(${Name} ${Value} CACHE INTERNAL "BOARD DEFCONFIG: ${Name}" FORCE)
-
-		else()
-			# Find boolean not set
-			string(REGEX MATCH " (CONFIG[^ ]+) is not set" Name ${NameAndValue})
-
-			if(${CMAKE_MATCH_1})
-				set(${CMAKE_MATCH_1} "" CACHE INTERNAL "BOARD DEFCONFIG: ${CMAKE_MATCH_1}" FORCE)
+				# Set the variable
+				set(${Name} ${Value} CACHE INTERNAL "BOARD DEFCONFIG: ${Name}" FORCE)
 			endif()
 		endif()
 
@@ -232,17 +216,15 @@ if(EXISTS ${BOARD_DEFCONFIG})
 
 	endforeach()
 
-	if (CONFIG_BOARD_PROTECTED)
-	    # Put every module not in userspace also to kernel list
-	    foreach(modpath ${config_module_list})
+	# Put every module not in userspace also to kernel list
+	foreach(modpath ${config_module_list})
 		get_filename_component(module ${modpath} NAME)
 		list(FIND config_user_list ${module} _index)
 
 		if (${_index} EQUAL -1)
 			list(APPEND config_kernel_list ${modpath})
 		endif()
-	    endforeach()
-	endif()
+	endforeach()
 
 	if(PLATFORM)
 		# set OS, and append specific platform module path
@@ -448,7 +430,7 @@ if(${LABEL} MATCHES "default" OR ${LABEL} MATCHES "bootloader" OR ${LABEL} MATCH
 		COMMAND_EXPAND_LISTS
 	)
 
-elseif(NOT ${LABEL} MATCHES "allyes") # All other configs except allyes which isn't configurable
+else()
 	add_custom_target(boardconfig
 		${CMAKE_COMMAND} -E env ${COMMON_KCONFIG_ENV_SETTINGS} ${MENUCONFIG_PATH} Kconfig
 		COMMAND ${CMAKE_COMMAND} -E env ${COMMON_KCONFIG_ENV_SETTINGS} ${SAVEDEFCONFIG_PATH}

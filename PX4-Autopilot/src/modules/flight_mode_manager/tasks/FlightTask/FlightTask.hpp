@@ -52,6 +52,7 @@
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_constraints.h>
 #include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/vehicle_trajectory_waypoint.h>
 #include <uORB/topics/home_position.h>
 #include <lib/geo/geo.h>
 
@@ -61,7 +62,6 @@ struct ekf_reset_counters_s {
 	uint8_t z;
 	uint8_t vz;
 	uint8_t heading;
-	uint8_t hagl;
 };
 
 class FlightTask : public ModuleParams
@@ -133,12 +133,19 @@ public:
 	const landing_gear_s &getGear() { return _gear; }
 
 	/**
-	 * All setpoints are set to NAN (uncontrolled), timestamp to zero
+	 * Get avoidance desired waypoint
+	 * @return desired waypoints
+	 */
+	const vehicle_trajectory_waypoint_s &getAvoidanceWaypoint() { return _desired_waypoint; }
+
+	/**
+	 * All setpoints are set to NAN (uncontrolled). Timestampt zero.
 	 */
 	static const trajectory_setpoint_s empty_trajectory_setpoint;
 
 	/**
-	 * All constraints are set to NAN, timestamp to zero
+	 * Empty constraints.
+	 * All constraints are set to NAN.
 	 */
 	static const vehicle_constraints_s empty_constraints;
 
@@ -192,7 +199,6 @@ protected:
 	virtual void _ekfResetHandlerPositionXY(const matrix::Vector2f &delta_xy) {};
 	virtual void _ekfResetHandlerVelocityXY(const matrix::Vector2f &delta_vxy) {};
 	virtual void _ekfResetHandlerPositionZ(float delta_z) {};
-	virtual void _ekfResetHandlerHagl(float delta_hagl) {};
 	virtual void _ekfResetHandlerVelocityZ(float delta_vz) {};
 	virtual void _ekfResetHandlerHeading(float delta_psi) {};
 
@@ -213,7 +219,6 @@ protected:
 	matrix::Vector3f _velocity; /**< current vehicle velocity */
 
 	float _yaw{}; /**< current vehicle yaw heading */
-	float _unaided_yaw{};
 	bool _is_yaw_good_for_control{}; /**< true if the yaw estimate can be used for yaw control */
 	float _dist_to_bottom{}; /**< current height above ground level if dist_bottom is valid */
 	float _dist_to_ground{}; /**< equals _dist_to_bottom if available, height above home otherwise */
@@ -245,6 +250,12 @@ protected:
 	vehicle_constraints_s _constraints{};
 
 	landing_gear_s _gear{};
+
+	/**
+	 * Desired waypoints.
+	 * Goals set by the FCU to be sent to the obstacle avoidance system.
+	 */
+	vehicle_trajectory_waypoint_s _desired_waypoint{};
 
 	DEFINE_PARAMETERS_CUSTOM_PARENT(ModuleParams,
 					(ParamFloat<px4::params::MPC_XY_VEL_MAX>) _param_mpc_xy_vel_max,

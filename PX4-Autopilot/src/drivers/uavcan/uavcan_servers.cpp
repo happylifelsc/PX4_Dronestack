@@ -180,7 +180,7 @@ void UavcanServers::migrateFWFromRoot(const char *sd_path, const char *sd_root_p
 
 	while ((dev_dirent = readdir(sd_root_dir)) != nullptr) {
 
-		uavcan_posix::FirmwareVersionChecker::AppDescriptor descriptor{0};
+		uavcan_posix::FirmwareVersionChecker::AppDescriptor descriptor;
 
 		// Looking for all uavcan.bin files.
 

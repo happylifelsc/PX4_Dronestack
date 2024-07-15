@@ -44,7 +44,6 @@
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/shutdown.h>
 #include <string.h>
-#include <board_config.h>
 
 static void print_usage()
 {
@@ -52,9 +51,6 @@ static void print_usage()
 
 	PRINT_MODULE_USAGE_NAME_SIMPLE("reboot", "command");
 	PRINT_MODULE_USAGE_PARAM_FLAG('b', "Reboot into bootloader", true);
-#ifdef BOARD_HAS_ISP_BOOTLOADER
-	PRINT_MODULE_USAGE_PARAM_FLAG('i', "Reboot into ISP (1st stage bootloader)", true);
-#endif
 
 	PRINT_MODULE_USAGE_ARG("lock|unlock", "Take/release the shutdown lock (for testing)", true);
 }
@@ -62,23 +58,16 @@ static void print_usage()
 extern "C" __EXPORT int reboot_main(int argc, char *argv[])
 {
 	int ch;
-	reboot_request_t request = REBOOT_REQUEST;
+	bool to_bootloader = false;
 
 	int myoptind = 1;
 	const char *myoptarg = nullptr;
 
-	while ((ch = px4_getopt(argc, argv, "bi", &myoptind, &myoptarg)) != -1) {
+	while ((ch = px4_getopt(argc, argv, "b", &myoptind, &myoptarg)) != -1) {
 		switch (ch) {
 		case 'b':
-			request = REBOOT_TO_BOOTLOADER;
+			to_bootloader = true;
 			break;
-
-#ifdef BOARD_HAS_ISP_BOOTLOADER
-
-		case 'i':
-			request = REBOOT_TO_ISP;
-			break;
-#endif
 
 		default:
 			print_usage();
@@ -109,7 +98,7 @@ extern "C" __EXPORT int reboot_main(int argc, char *argv[])
 		return ret;
 	}
 
-	int ret = px4_reboot_request(request);
+	int ret = px4_reboot_request(to_bootloader);
 
 	if (ret < 0) {
 		PX4_ERR("reboot failed (%i)", ret);

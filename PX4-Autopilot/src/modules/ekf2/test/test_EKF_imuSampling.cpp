@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019-2023 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2019 ECL Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +34,7 @@
 #include <gtest/gtest.h>
 #include <math.h>
 #include "EKF/ekf.h"
-#include "EKF/imu_down_sampler/imu_down_sampler.hpp"
+#include "EKF/imu_down_sampler.hpp"
 
 class EkfImuSamplingTest : public ::testing::TestWithParam<std::tuple<float, float, Vector3f, Vector3f>>
 {

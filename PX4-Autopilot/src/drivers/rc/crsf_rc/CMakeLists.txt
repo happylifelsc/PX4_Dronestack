@@ -46,4 +46,6 @@ px4_add_module(
 
 	MODULE_CONFIG
 		module.yaml
+	DEPENDS
+		rc
 	)

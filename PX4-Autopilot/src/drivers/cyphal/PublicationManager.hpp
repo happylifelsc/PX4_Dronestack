@@ -67,7 +67,7 @@
 /* Preprocessor calculation of publisher count */
 
 #define UAVCAN_PUB_COUNT CONFIG_CYPHAL_GNSS_PUBLISHER + \
-	2 * CONFIG_CYPHAL_ESC_CONTROLLER + \
+	CONFIG_CYPHAL_ESC_CONTROLLER + \
 	CONFIG_CYPHAL_READINESS_PUBLISHER + \
 	CONFIG_CYPHAL_UORB_ACTUATOR_OUTPUTS_PUBLISHER + \
 	CONFIG_CYPHAL_UORB_SENSOR_GPS_PUBLISHER
@@ -79,7 +79,6 @@
 
 #include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/sensor_gps.h>
-#include <uavcan/node/port/List_0_1.h>
 
 #include "Actuators/EscClient.hpp"
 #include "Publishers/udral/Readiness.hpp"
@@ -104,7 +103,6 @@ public:
 
 	UavcanPublisher *getPublisher(const char *subject_name);
 
-	void fillSubjectIdList(uavcan_node_port_SubjectIDList_0_1 &publishers_list);
 private:
 	void updateDynamicPublications();
 
@@ -131,14 +129,6 @@ private:
 				return new UavcanEscController(handle, pmgr);
 			},
 			"udral.esc",
-			0
-		},
-		{
-			[](CanardHandle & handle, UavcanParamManager & pmgr) -> UavcanPublisher *
-			{
-				return new ReadinessPublisher(handle, pmgr);
-			},
-			"udral.readiness",
 			0
 		},
 #endif

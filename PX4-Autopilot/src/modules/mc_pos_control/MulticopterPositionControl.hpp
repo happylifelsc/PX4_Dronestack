@@ -39,12 +39,9 @@
 
 #include "PositionControl/PositionControl.hpp"
 #include "Takeoff/Takeoff.hpp"
-#include "GotoControl/GotoControl.hpp"
 
 #include <drivers/drv_hrt.h>
-#include <lib/mathlib/math/filter/AlphaFilter.hpp>
-#include <lib/mathlib/math/filter/NotchFilter.hpp>
-#include <lib/mathlib/math/WelfordMean.hpp>
+#include <lib/controllib/blocks.hpp>
 #include <lib/perf/perf_counter.h>
 #include <lib/slew_rate/SlewRateYaw.hpp>
 #include <lib/systemlib/mavlink_log.h>
@@ -67,11 +64,14 @@
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
+#include <uORB/topics/vehicle_odometry.h>
+#include <uORB/topics/anomaly_detection.h>
+
 
 using namespace time_literals;
 
-class MulticopterPositionControl : public ModuleBase<MulticopterPositionControl>, public ModuleParams,
-	public px4::ScheduledWorkItem
+class MulticopterPositionControl : public ModuleBase<MulticopterPositionControl>, public control::SuperBlock,
+	public ModuleParams, public px4::ScheduledWorkItem
 {
 public:
 	MulticopterPositionControl(bool vtol = false);
@@ -100,6 +100,8 @@ private:
 	uORB::Publication<vehicle_local_position_setpoint_s> _local_pos_sp_pub{ORB_ID(vehicle_local_position_setpoint)};	/**< vehicle local position setpoint publication */
 
 	uORB::SubscriptionCallbackWorkItem _local_pos_sub{this, ORB_ID(vehicle_local_position)};	/**< vehicle local position */
+	uORB::SubscriptionCallbackWorkItem _vision_pose_sub{this, ORB_ID(vehicle_visual_odometry)};
+
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
@@ -108,6 +110,7 @@ private:
 	uORB::Subscription _vehicle_constraints_sub{ORB_ID(vehicle_constraints)};
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 	uORB::Subscription _vehicle_land_detected_sub{ORB_ID(vehicle_land_detected)};
+	uORB::Subscription _anomaly_flag_sub{ORB_ID(anomaly_detection)};
 
 	hrt_abstime _time_stamp_last_loop{0};		/**< time stamp of last loop iteration */
 	hrt_abstime _time_position_control_enabled{0};
@@ -148,16 +151,9 @@ private:
 		(ParamFloat<px4::params::MPC_TILTMAX_AIR>)  _param_mpc_tiltmax_air,
 		(ParamFloat<px4::params::MPC_THR_HOVER>)    _param_mpc_thr_hover,
 		(ParamBool<px4::params::MPC_USE_HTE>)       _param_mpc_use_hte,
-		(ParamBool<px4::params::MPC_ACC_DECOUPLE>)  _param_mpc_acc_decouple,
-
-		(ParamFloat<px4::params::MPC_VEL_LP>)       _param_mpc_vel_lp,
-		(ParamFloat<px4::params::MPC_VEL_NF_FRQ>)   _param_mpc_vel_nf_frq,
-		(ParamFloat<px4::params::MPC_VEL_NF_BW>)    _param_mpc_vel_nf_bw,
-		(ParamFloat<px4::params::MPC_VELD_LP>)      _param_mpc_veld_lp,
 
 		// Takeoff / Land
 		(ParamFloat<px4::params::COM_SPOOLUP_TIME>) _param_com_spoolup_time, /**< time to let motors spool up after arming */
-		(ParamBool<px4::params::COM_THROW_EN>)      _param_com_throw_en, /**< throw launch enabled  */
 		(ParamFloat<px4::params::MPC_TKO_RAMP_T>)   _param_mpc_tko_ramp_t,   /**< time constant for smooth takeoff ramp */
 		(ParamFloat<px4::params::MPC_TKO_SPEED>)    _param_mpc_tko_speed,
 		(ParamFloat<px4::params::MPC_LAND_SPEED>)   _param_mpc_land_speed,
@@ -185,26 +181,14 @@ private:
 		(ParamFloat<px4::params::MPC_MAN_Y_TAU>)    _param_mpc_man_y_tau,
 
 		(ParamFloat<px4::params::MPC_XY_VEL_ALL>)   _param_mpc_xy_vel_all,
-		(ParamFloat<px4::params::MPC_Z_VEL_ALL>)    _param_mpc_z_vel_all,
-
-		(ParamFloat<px4::params::MPC_XY_ERR_MAX>) _param_mpc_xy_err_max,
-		(ParamFloat<px4::params::MPC_YAWRAUTO_MAX>) _param_mpc_yawrauto_max,
-		(ParamFloat<px4::params::MPC_YAWRAUTO_ACC>) _param_mpc_yawrauto_acc
+		(ParamFloat<px4::params::MPC_Z_VEL_ALL>)    _param_mpc_z_vel_all
 	);
 
-	math::WelfordMean<float> _sample_interval_s{};
+	control::BlockDerivative _vel_x_deriv; /**< velocity derivative in x */
+	control::BlockDerivative _vel_y_deriv; /**< velocity derivative in y */
+	control::BlockDerivative _vel_z_deriv; /**< velocity derivative in z */
 
-	AlphaFilter<matrix::Vector2f> _vel_xy_lp_filter{};
-	AlphaFilter<float> _vel_z_lp_filter{};
-
-	math::NotchFilter<matrix::Vector2f> _vel_xy_notch_filter{};
-	math::NotchFilter<float> _vel_z_notch_filter{};
-
-	AlphaFilter<matrix::Vector2f> _vel_deriv_xy_lp_filter{};
-	AlphaFilter<float> _vel_deriv_z_lp_filter{};
-
-	GotoControl _goto_control; ///< class for handling smooth goto position setpoints
-	PositionControl _control; ///< class for core PID position control
+	PositionControl _control;  /**< class for core PID position control */
 
 	hrt_abstime _last_warn{0}; /**< timer when the last warn message was sent out */
 
@@ -238,7 +222,7 @@ private:
 	/**
 	 * Check for validity of positon/velocity states.
 	 */
-	PositionControlStates set_vehicle_states(const vehicle_local_position_s &local_pos, const float dt_s);
+	PositionControlStates set_vehicle_states(const vehicle_local_position_s &local_pos);
 
 	/**
 	 * Generate setpoint to bridge no executable setpoint being available.
@@ -246,13 +230,4 @@ private:
 	 * This should only happen briefly when transitioning and never during mode operation or by design.
 	 */
 	trajectory_setpoint_s generateFailsafeSetpoint(const hrt_abstime &now, const PositionControlStates &states, bool warn);
-
-	/**
-	 * @brief adjust existing (or older) setpoint with any EKF reset deltas and update the local counters
-	 *
-	 * @param[in] vehicle_local_position struct containing EKF reset deltas and counters
-	 * @param[out] setpoint trajectory setpoint struct to be adjusted
-	 */
-	void adjustSetpointForEKFResets(const vehicle_local_position_s &vehicle_local_position,
-					trajectory_setpoint_s &setpoint);
 };

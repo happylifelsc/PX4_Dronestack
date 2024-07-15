@@ -44,7 +44,6 @@
  */
 
 #include "batt_smbus.h"
-#include <lib/atmosphere/atmosphere.h>
 
 extern "C" __EXPORT int batt_smbus_main(int argc, char *argv[]);
 
@@ -116,11 +115,13 @@ void BATT_SMBUS::RunImpl()
 
 	// Convert millivolts to volts.
 	new_report.voltage_v = ((float)result) / 1000.0f;
+	new_report.voltage_filtered_v = new_report.voltage_v;
 
 	// Read current.
 	ret |= _interface->read_word(BATT_SMBUS_CURRENT, result);
 
 	new_report.current_a = (-1.0f * ((float)(*(int16_t *)&result)) / 1000.0f) * _c_mult;
+	new_report.current_filtered_a = new_report.current_a;
 
 	// Read average current.
 	ret |= _interface->read_word(BATT_SMBUS_AVERAGE_CURRENT, result);
@@ -159,7 +160,7 @@ void BATT_SMBUS::RunImpl()
 
 	// Read battery temperature and covert to Celsius.
 	ret |= _interface->read_word(BATT_SMBUS_TEMP, result);
-	new_report.temperature = ((float)result / 10.0f) + atmosphere::kAbsoluteNullCelsius;
+	new_report.temperature = ((float)result / 10.0f) + CONSTANTS_ABSOLUTE_NULL_CELSIUS;
 
 	// Only publish if no errors.
 	if (ret == PX4_OK) {
@@ -389,12 +390,6 @@ int BATT_SMBUS::get_startup_info()
 
 	uint16_t state_of_health;
 	ret |= _interface->read_word(BATT_SMBUS_STATE_OF_HEALTH, state_of_health);
-
-	/* ManufacturerAccess dummy command to init the ManufacturerBlockAccess routine
-	in the BQ40Zx0 and avoid timeout during LifetimeDataFlush.
-	test Sleep > 20 ms to give time to init the ManufacturerBlockAccess routine*/
-	ret |= _interface->write_word(BATT_SMBUS_MANUFACTURER_ACCESS, BATT_SMBUS_DEVICE_TYPE);
-	px4_usleep(30_ms);
 
 	if (!ret) {
 		_serial_number = serial_num;

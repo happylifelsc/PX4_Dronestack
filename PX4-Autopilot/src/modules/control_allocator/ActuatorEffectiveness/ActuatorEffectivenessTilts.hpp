@@ -79,8 +79,6 @@ public:
 
 	bool hasYawControl() const;
 
-	float getYawTorqueOfTilt(int tilt_index) const { return _torque[tilt_index](2); }
-
 private:
 	void updateParams() override;
 

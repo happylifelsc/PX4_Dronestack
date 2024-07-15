@@ -34,7 +34,6 @@
 #include <gtest/gtest.h>
 #include <matrix/Dcm.hpp>
 #include <matrix/Dcm2.hpp>
-#include <matrix/Euler.hpp>
 
 using namespace matrix;
 

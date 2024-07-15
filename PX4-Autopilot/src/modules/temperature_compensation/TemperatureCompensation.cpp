@@ -52,37 +52,6 @@ int TemperatureCompensation::initialize_parameter_handles(ParameterHandles &para
 	char nbuf[16] {};
 	int ret = PX4_ERROR;
 
-	/* accelerometer calibration parameters */
-	parameter_handles.accel_tc_enable = param_find("TC_A_ENABLE");
-	int32_t accel_tc_enabled = 0;
-	ret = param_get(parameter_handles.accel_tc_enable, &accel_tc_enabled);
-
-
-	if (ret == PX4_OK && accel_tc_enabled) {
-		for (unsigned j = 0; j < ACCEL_COUNT_MAX; j++) {
-			snprintf(nbuf, sizeof(nbuf), "TC_A%d_ID", j);
-			parameter_handles.accel_cal_handles[j].ID = param_find(nbuf);
-
-			for (unsigned i = 0; i < 3; i++) {
-				snprintf(nbuf, sizeof(nbuf), "TC_A%d_X3_%d", j, i);
-				parameter_handles.accel_cal_handles[j].x3[i] = param_find(nbuf);
-				snprintf(nbuf, sizeof(nbuf), "TC_A%d_X2_%d", j, i);
-				parameter_handles.accel_cal_handles[j].x2[i] = param_find(nbuf);
-				snprintf(nbuf, sizeof(nbuf), "TC_A%d_X1_%d", j, i);
-				parameter_handles.accel_cal_handles[j].x1[i] = param_find(nbuf);
-				snprintf(nbuf, sizeof(nbuf), "TC_A%d_X0_%d", j, i);
-				parameter_handles.accel_cal_handles[j].x0[i] = param_find(nbuf);
-			}
-
-			snprintf(nbuf, sizeof(nbuf), "TC_A%d_TREF", j);
-			parameter_handles.accel_cal_handles[j].ref_temp = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_A%d_TMIN", j);
-			parameter_handles.accel_cal_handles[j].min_temp = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_A%d_TMAX", j);
-			parameter_handles.accel_cal_handles[j].max_temp = param_find(nbuf);
-		}
-	}
-
 	/* rate gyro calibration parameters */
 	parameter_handles.gyro_tc_enable = param_find("TC_G_ENABLE");
 	int32_t gyro_tc_enabled = 0;
@@ -90,56 +59,56 @@ int TemperatureCompensation::initialize_parameter_handles(ParameterHandles &para
 
 	if (ret == PX4_OK && gyro_tc_enabled) {
 		for (unsigned j = 0; j < GYRO_COUNT_MAX; j++) {
-			snprintf(nbuf, sizeof(nbuf), "TC_G%d_ID", j);
+			sprintf(nbuf, "TC_G%d_ID", j);
 			parameter_handles.gyro_cal_handles[j].ID = param_find(nbuf);
 
 			for (unsigned i = 0; i < 3; i++) {
-				snprintf(nbuf, sizeof(nbuf), "TC_G%d_X3_%d", j, i);
+				sprintf(nbuf, "TC_G%d_X3_%d", j, i);
 				parameter_handles.gyro_cal_handles[j].x3[i] = param_find(nbuf);
-				snprintf(nbuf, sizeof(nbuf), "TC_G%d_X2_%d", j, i);
+				sprintf(nbuf, "TC_G%d_X2_%d", j, i);
 				parameter_handles.gyro_cal_handles[j].x2[i] = param_find(nbuf);
-				snprintf(nbuf, sizeof(nbuf), "TC_G%d_X1_%d", j, i);
+				sprintf(nbuf, "TC_G%d_X1_%d", j, i);
 				parameter_handles.gyro_cal_handles[j].x1[i] = param_find(nbuf);
-				snprintf(nbuf, sizeof(nbuf), "TC_G%d_X0_%d", j, i);
+				sprintf(nbuf, "TC_G%d_X0_%d", j, i);
 				parameter_handles.gyro_cal_handles[j].x0[i] = param_find(nbuf);
 			}
 
-			snprintf(nbuf, sizeof(nbuf), "TC_G%d_TREF", j);
+			sprintf(nbuf, "TC_G%d_TREF", j);
 			parameter_handles.gyro_cal_handles[j].ref_temp = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_G%d_TMIN", j);
+			sprintf(nbuf, "TC_G%d_TMIN", j);
 			parameter_handles.gyro_cal_handles[j].min_temp = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_G%d_TMAX", j);
+			sprintf(nbuf, "TC_G%d_TMAX", j);
 			parameter_handles.gyro_cal_handles[j].max_temp = param_find(nbuf);
 		}
 	}
 
-	/* magnetometer calibration parameters */
-	parameter_handles.mag_tc_enable = param_find("TC_M_ENABLE");
-	int32_t mag_tc_enabled = 0;
-	ret = param_get(parameter_handles.mag_tc_enable, &mag_tc_enabled);
+	/* accelerometer calibration parameters */
+	parameter_handles.accel_tc_enable = param_find("TC_A_ENABLE");
+	int32_t accel_tc_enabled = 0;
+	ret = param_get(parameter_handles.accel_tc_enable, &accel_tc_enabled);
 
-	if (ret == PX4_OK && mag_tc_enabled) {
-		for (unsigned j = 0; j < MAG_COUNT_MAX; j++) {
-			snprintf(nbuf, sizeof(nbuf), "TC_M%d_ID", j);
-			parameter_handles.mag_cal_handles[j].ID = param_find(nbuf);
+	if (ret == PX4_OK && accel_tc_enabled) {
+		for (unsigned j = 0; j < ACCEL_COUNT_MAX; j++) {
+			sprintf(nbuf, "TC_A%d_ID", j);
+			parameter_handles.accel_cal_handles[j].ID = param_find(nbuf);
 
 			for (unsigned i = 0; i < 3; i++) {
-				snprintf(nbuf, sizeof(nbuf), "TC_M%d_X3_%d", j, i);
-				parameter_handles.mag_cal_handles[j].x3[i] = param_find(nbuf);
-				snprintf(nbuf, sizeof(nbuf), "TC_M%d_X2_%d", j, i);
-				parameter_handles.mag_cal_handles[j].x2[i] = param_find(nbuf);
-				snprintf(nbuf, sizeof(nbuf), "TC_M%d_X1_%d", j, i);
-				parameter_handles.mag_cal_handles[j].x1[i] = param_find(nbuf);
-				snprintf(nbuf, sizeof(nbuf), "TC_M%d_X0_%d", j, i);
-				parameter_handles.mag_cal_handles[j].x0[i] = param_find(nbuf);
+				sprintf(nbuf, "TC_A%d_X3_%d", j, i);
+				parameter_handles.accel_cal_handles[j].x3[i] = param_find(nbuf);
+				sprintf(nbuf, "TC_A%d_X2_%d", j, i);
+				parameter_handles.accel_cal_handles[j].x2[i] = param_find(nbuf);
+				sprintf(nbuf, "TC_A%d_X1_%d", j, i);
+				parameter_handles.accel_cal_handles[j].x1[i] = param_find(nbuf);
+				sprintf(nbuf, "TC_A%d_X0_%d", j, i);
+				parameter_handles.accel_cal_handles[j].x0[i] = param_find(nbuf);
 			}
 
-			snprintf(nbuf, sizeof(nbuf), "TC_M%d_TREF", j);
-			parameter_handles.mag_cal_handles[j].ref_temp = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_M%d_TMIN", j);
-			parameter_handles.mag_cal_handles[j].min_temp = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_M%d_TMAX", j);
-			parameter_handles.mag_cal_handles[j].max_temp = param_find(nbuf);
+			sprintf(nbuf, "TC_A%d_TREF", j);
+			parameter_handles.accel_cal_handles[j].ref_temp = param_find(nbuf);
+			sprintf(nbuf, "TC_A%d_TMIN", j);
+			parameter_handles.accel_cal_handles[j].min_temp = param_find(nbuf);
+			sprintf(nbuf, "TC_A%d_TMAX", j);
+			parameter_handles.accel_cal_handles[j].max_temp = param_find(nbuf);
 		}
 	}
 
@@ -150,25 +119,25 @@ int TemperatureCompensation::initialize_parameter_handles(ParameterHandles &para
 
 	if (ret == PX4_OK && baro_tc_enabled) {
 		for (unsigned j = 0; j < BARO_COUNT_MAX; j++) {
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_ID", j);
+			sprintf(nbuf, "TC_B%d_ID", j);
 			parameter_handles.baro_cal_handles[j].ID = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_X5", j);
+			sprintf(nbuf, "TC_B%d_X5", j);
 			parameter_handles.baro_cal_handles[j].x5 = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_X4", j);
+			sprintf(nbuf, "TC_B%d_X4", j);
 			parameter_handles.baro_cal_handles[j].x4 = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_X3", j);
+			sprintf(nbuf, "TC_B%d_X3", j);
 			parameter_handles.baro_cal_handles[j].x3 = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_X2", j);
+			sprintf(nbuf, "TC_B%d_X2", j);
 			parameter_handles.baro_cal_handles[j].x2 = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_X1", j);
+			sprintf(nbuf, "TC_B%d_X1", j);
 			parameter_handles.baro_cal_handles[j].x1 = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_X0", j);
+			sprintf(nbuf, "TC_B%d_X0", j);
 			parameter_handles.baro_cal_handles[j].x0 = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_TREF", j);
+			sprintf(nbuf, "TC_B%d_TREF", j);
 			parameter_handles.baro_cal_handles[j].ref_temp = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_TMIN", j);
+			sprintf(nbuf, "TC_B%d_TMIN", j);
 			parameter_handles.baro_cal_handles[j].min_temp = param_find(nbuf);
-			snprintf(nbuf, sizeof(nbuf), "TC_B%d_TMAX", j);
+			sprintf(nbuf, "TC_B%d_TMAX", j);
 			parameter_handles.baro_cal_handles[j].max_temp = param_find(nbuf);
 		}
 	}
@@ -183,33 +152,6 @@ int TemperatureCompensation::parameters_update()
 
 	if (ret != 0) {
 		return ret;
-	}
-
-	/* accelerometer calibration parameters */
-	param_get(parameter_handles.accel_tc_enable, &_parameters.accel_tc_enable);
-
-	if (_parameters.accel_tc_enable == 1) {
-		for (unsigned j = 0; j < ACCEL_COUNT_MAX; j++) {
-			if (param_get(parameter_handles.accel_cal_handles[j].ID, &(_parameters.accel_cal_data[j].ID)) == PX4_OK) {
-				param_get(parameter_handles.accel_cal_handles[j].ref_temp, &(_parameters.accel_cal_data[j].ref_temp));
-				param_get(parameter_handles.accel_cal_handles[j].min_temp, &(_parameters.accel_cal_data[j].min_temp));
-				param_get(parameter_handles.accel_cal_handles[j].max_temp, &(_parameters.accel_cal_data[j].max_temp));
-
-				for (unsigned int i = 0; i < 3; i++) {
-					param_get(parameter_handles.accel_cal_handles[j].x3[i], &(_parameters.accel_cal_data[j].x3[i]));
-					param_get(parameter_handles.accel_cal_handles[j].x2[i], &(_parameters.accel_cal_data[j].x2[i]));
-					param_get(parameter_handles.accel_cal_handles[j].x1[i], &(_parameters.accel_cal_data[j].x1[i]));
-					param_get(parameter_handles.accel_cal_handles[j].x0[i], &(_parameters.accel_cal_data[j].x0[i]));
-				}
-
-			} else {
-				// Set all cal values to zero
-				memset(&_parameters.accel_cal_data[j], 0, sizeof(_parameters.accel_cal_data[j]));
-
-				PX4_WARN("FAIL ACCEL %d CAL PARAM LOAD - USING DEFAULTS", j);
-				ret = PX4_ERROR;
-			}
-		}
 	}
 
 	/* rate gyro calibration parameters */
@@ -239,28 +181,28 @@ int TemperatureCompensation::parameters_update()
 		}
 	}
 
-	/* magnetometer calibration parameters */
-	param_get(parameter_handles.mag_tc_enable, &_parameters.mag_tc_enable);
+	/* accelerometer calibration parameters */
+	param_get(parameter_handles.accel_tc_enable, &_parameters.accel_tc_enable);
 
-	if (_parameters.mag_tc_enable == 1) {
-		for (unsigned j = 0; j < MAG_COUNT_MAX; j++) {
-			if (param_get(parameter_handles.mag_cal_handles[j].ID, &(_parameters.mag_cal_data[j].ID)) == PX4_OK) {
-				param_get(parameter_handles.mag_cal_handles[j].ref_temp, &(_parameters.mag_cal_data[j].ref_temp));
-				param_get(parameter_handles.mag_cal_handles[j].min_temp, &(_parameters.mag_cal_data[j].min_temp));
-				param_get(parameter_handles.mag_cal_handles[j].max_temp, &(_parameters.mag_cal_data[j].max_temp));
+	if (_parameters.accel_tc_enable == 1) {
+		for (unsigned j = 0; j < ACCEL_COUNT_MAX; j++) {
+			if (param_get(parameter_handles.accel_cal_handles[j].ID, &(_parameters.accel_cal_data[j].ID)) == PX4_OK) {
+				param_get(parameter_handles.accel_cal_handles[j].ref_temp, &(_parameters.accel_cal_data[j].ref_temp));
+				param_get(parameter_handles.accel_cal_handles[j].min_temp, &(_parameters.accel_cal_data[j].min_temp));
+				param_get(parameter_handles.accel_cal_handles[j].max_temp, &(_parameters.accel_cal_data[j].max_temp));
 
 				for (unsigned int i = 0; i < 3; i++) {
-					param_get(parameter_handles.mag_cal_handles[j].x3[i], &(_parameters.mag_cal_data[j].x3[i]));
-					param_get(parameter_handles.mag_cal_handles[j].x2[i], &(_parameters.mag_cal_data[j].x2[i]));
-					param_get(parameter_handles.mag_cal_handles[j].x1[i], &(_parameters.mag_cal_data[j].x1[i]));
-					param_get(parameter_handles.mag_cal_handles[j].x0[i], &(_parameters.mag_cal_data[j].x0[i]));
+					param_get(parameter_handles.accel_cal_handles[j].x3[i], &(_parameters.accel_cal_data[j].x3[i]));
+					param_get(parameter_handles.accel_cal_handles[j].x2[i], &(_parameters.accel_cal_data[j].x2[i]));
+					param_get(parameter_handles.accel_cal_handles[j].x1[i], &(_parameters.accel_cal_data[j].x1[i]));
+					param_get(parameter_handles.accel_cal_handles[j].x0[i], &(_parameters.accel_cal_data[j].x0[i]));
 				}
 
 			} else {
 				// Set all cal values to zero
-				memset(&_parameters.mag_cal_data[j], 0, sizeof(_parameters.mag_cal_data[j]));
+				memset(&_parameters.accel_cal_data[j], 0, sizeof(_parameters.accel_cal_data[j]));
 
-				PX4_WARN("FAIL MAG %d CAL PARAM LOAD - USING DEFAULTS", j);
+				PX4_WARN("FAIL ACCEL %d CAL PARAM LOAD - USING DEFAULTS", j);
 				ret = PX4_ERROR;
 			}
 		}
@@ -369,15 +311,6 @@ bool TemperatureCompensation::calc_thermal_offsets_3D(const SensorCalData3D &coe
 	return ret;
 }
 
-int TemperatureCompensation::set_sensor_id_accel(uint32_t device_id, int topic_instance)
-{
-	if (_parameters.accel_tc_enable != 1) {
-		return 0;
-	}
-
-	return set_sensor_id(device_id, topic_instance, _accel_data, _parameters.accel_cal_data, ACCEL_COUNT_MAX);
-}
-
 int TemperatureCompensation::set_sensor_id_gyro(uint32_t device_id, int topic_instance)
 {
 	if (_parameters.gyro_tc_enable != 1) {
@@ -387,13 +320,13 @@ int TemperatureCompensation::set_sensor_id_gyro(uint32_t device_id, int topic_in
 	return set_sensor_id(device_id, topic_instance, _gyro_data, _parameters.gyro_cal_data, GYRO_COUNT_MAX);
 }
 
-int TemperatureCompensation::set_sensor_id_mag(uint32_t device_id, int topic_instance)
+int TemperatureCompensation::set_sensor_id_accel(uint32_t device_id, int topic_instance)
 {
-	if (_parameters.mag_tc_enable != 1) {
+	if (_parameters.accel_tc_enable != 1) {
 		return 0;
 	}
 
-	return set_sensor_id(device_id, topic_instance, _mag_data, _parameters.mag_cal_data, MAG_COUNT_MAX);
+	return set_sensor_id(device_id, topic_instance, _accel_data, _parameters.accel_cal_data, ACCEL_COUNT_MAX);
 }
 
 int TemperatureCompensation::set_sensor_id_baro(uint32_t device_id, int topic_instance)
@@ -417,32 +350,6 @@ int TemperatureCompensation::set_sensor_id(uint32_t device_id, int topic_instanc
 	}
 
 	return -1;
-}
-
-int TemperatureCompensation::update_offsets_accel(int topic_instance, float temperature, float *offsets)
-{
-	// Check if temperature compensation is enabled
-	if (_parameters.accel_tc_enable != 1) {
-		return 0;
-	}
-
-	// Map device ID to uORB topic instance
-	uint8_t mapping = _accel_data.device_mapping[topic_instance];
-
-	if (mapping == 255) {
-		return -1;
-	}
-
-	// Calculate and update the offsets
-	calc_thermal_offsets_3D(_parameters.accel_cal_data[mapping], temperature, offsets);
-
-	// Check if temperature delta is large enough to warrant a new publication
-	if (fabsf(temperature - _accel_data.last_temperature[topic_instance]) > 1.0f) {
-		_accel_data.last_temperature[topic_instance] = temperature;
-		return 2;
-	}
-
-	return 1;
 }
 
 int TemperatureCompensation::update_offsets_gyro(int topic_instance, float temperature, float *offsets)
@@ -471,26 +378,26 @@ int TemperatureCompensation::update_offsets_gyro(int topic_instance, float tempe
 	return 1;
 }
 
-int TemperatureCompensation::update_offsets_mag(int topic_instance, float temperature, float *offsets)
+int TemperatureCompensation::update_offsets_accel(int topic_instance, float temperature, float *offsets)
 {
 	// Check if temperature compensation is enabled
-	if (_parameters.mag_tc_enable != 1) {
+	if (_parameters.accel_tc_enable != 1) {
 		return 0;
 	}
 
 	// Map device ID to uORB topic instance
-	uint8_t mapping = _mag_data.device_mapping[topic_instance];
+	uint8_t mapping = _accel_data.device_mapping[topic_instance];
 
 	if (mapping == 255) {
 		return -1;
 	}
 
 	// Calculate and update the offsets
-	calc_thermal_offsets_3D(_parameters.mag_cal_data[mapping], temperature, offsets);
+	calc_thermal_offsets_3D(_parameters.accel_cal_data[mapping], temperature, offsets);
 
 	// Check if temperature delta is large enough to warrant a new publication
-	if (fabsf(temperature - _mag_data.last_temperature[topic_instance]) > 1.0f) {
-		_mag_data.last_temperature[topic_instance] = temperature;
+	if (fabsf(temperature - _accel_data.last_temperature[topic_instance]) > 1.0f) {
+		_accel_data.last_temperature[topic_instance] = temperature;
 		return 2;
 	}
 
@@ -526,19 +433,6 @@ int TemperatureCompensation::update_offsets_baro(int topic_instance, float tempe
 void TemperatureCompensation::print_status()
 {
 	PX4_INFO("Temperature Compensation:");
-
-	PX4_INFO(" accel: enabled: %" PRId32, _parameters.accel_tc_enable);
-
-	if (_parameters.accel_tc_enable == 1) {
-		for (int i = 0; i < ACCEL_COUNT_MAX; ++i) {
-			uint8_t mapping = _accel_data.device_mapping[i];
-
-			if (_accel_data.device_mapping[i] != 255) {
-				PX4_INFO("  using device ID %" PRId32 " for topic instance %i", _parameters.accel_cal_data[mapping].ID, i);
-			}
-		}
-	}
-
 	PX4_INFO(" gyro: enabled: %" PRId32, _parameters.gyro_tc_enable);
 
 	if (_parameters.gyro_tc_enable == 1) {
@@ -551,14 +445,14 @@ void TemperatureCompensation::print_status()
 		}
 	}
 
-	PX4_INFO(" mag: enabled: %" PRId32, _parameters.mag_tc_enable);
+	PX4_INFO(" accel: enabled: %" PRId32, _parameters.accel_tc_enable);
 
-	if (_parameters.mag_tc_enable == 1) {
-		for (int i = 0; i < MAG_COUNT_MAX; ++i) {
-			uint8_t mapping = _mag_data.device_mapping[i];
+	if (_parameters.accel_tc_enable == 1) {
+		for (int i = 0; i < ACCEL_COUNT_MAX; ++i) {
+			uint8_t mapping = _accel_data.device_mapping[i];
 
-			if (_mag_data.device_mapping[i] != 255) {
-				PX4_INFO("  using device ID %" PRId32 " for topic instance %i", _parameters.mag_cal_data[mapping].ID, i);
+			if (_accel_data.device_mapping[i] != 255) {
+				PX4_INFO("  using device ID %" PRId32 " for topic instance %i", _parameters.accel_cal_data[mapping].ID, i);
 			}
 		}
 	}

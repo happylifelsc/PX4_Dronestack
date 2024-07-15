@@ -215,11 +215,9 @@ void VehicleAcceleration::Run()
 	// update corrections first to set _selected_sensor
 	bool selection_updated = SensorSelectionUpdate();
 
-	ParametersUpdate();
-
 	_calibration.SensorCorrectionsUpdate(selection_updated);
-
 	SensorBiasUpdate(selection_updated);
+	ParametersUpdate();
 
 	// require valid sensor sample rate to run
 	if (!PX4_ISFINITE(_filter_sample_rate)) {
@@ -231,12 +229,9 @@ void VehicleAcceleration::Run()
 	}
 
 	// process all outstanding messages
-	int sensor_sub_updates = 0;
 	sensor_accel_s sensor_data;
 
-	while ((sensor_sub_updates < sensor_accel_s::ORB_QUEUE_LENGTH) && _sensor_sub.update(&sensor_data)) {
-		sensor_sub_updates++;
-
+	while (_sensor_sub.update(&sensor_data)) {
 		const Vector3f accel_raw{sensor_data.x, sensor_data.y, sensor_data.z};
 
 		if (accel_raw.isAllFinite()) {

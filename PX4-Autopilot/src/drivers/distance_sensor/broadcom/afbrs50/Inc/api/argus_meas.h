@@ -1,11 +1,11 @@
 /*************************************************************************//**
  * @file
- * @brief       This file is part of the AFBR-S50 hardware API.
- * @details     Defines the generic measurement parameters and data structures.
+ * @brief    	This file is part of the AFBR-S50 hardware API.
+ * @details		Defines the generic measurement parameters and data structures.
  *
  * @copyright
  *
- * Copyright (c) 2023, Broadcom Inc.
+ * Copyright (c) 2021, Broadcom Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,20 +36,17 @@
 
 #ifndef ARGUS_MEAS_H
 #define ARGUS_MEAS_H
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*!***************************************************************************
- * @defgroup    argus_meas Measurement/Device Control
- * @ingroup     argus_api
+ * @defgroup 	argusmeas Measurement/Device Control
+ * @ingroup		argusapi
  *
- * @brief       Measurement/Device control module
+ * @brief 		Measurement/Device control module
  *
- * @details     This module contains measurement and device control specific
- *              definitions and methods.
+ * @details		This module contains measurement and device control specific
+ * 				definitions and methods.
  *
- * @addtogroup  argus_meas
+ * @addtogroup 	argusmeas
  * @{
  *****************************************************************************/
 
@@ -69,11 +66,11 @@ extern "C" {
 #define ARGUS_AUX_DATA_SIZE (3U * ARGUS_AUX_CHANNEL_COUNT) // 3 bytes * x channels * 1 phase
 
 /*!***************************************************************************
- * @brief   The device measurement configuration structure.
- * @details The portion of the configuration data that belongs to the
- *          measurement cycle. I.e. the data that defines a measurement frame.
+ * @brief	The device measurement configuration structure.
+ * @details	The portion of the configuration data that belongs to the
+ * 			measurement cycle. I.e. the data that defines a measurement frame.
  *****************************************************************************/
-typedef struct argus_meas_frame_t {
+typedef struct {
 	/*! Frame integration time in microseconds.
 	 *  The integration time determines the measured time between
 	 *  the start signal and the IRQ. Note that this value will be
@@ -85,13 +82,13 @@ typedef struct argus_meas_frame_t {
 
 	/*! Pixel enabled mask for the 32 pixels sorted
 	 *  by x-y-indices.
-	 *  See [pixel mapping](@ref argus_map) for more
+	 *  See [pixel mapping](@ref argusmap) for more
 	 *  details on the pixel mask. */
 	uint32_t PxEnMask;
 
 	/*! ADS channel enabled mask for the remaining
 	 *  channels 31 .. 63 (miscellaneous values).
-	 *  See [pixel mapping](@ref argus_map) for more
+	 *  See [pixel mapping](@ref argusmap) for more
 	 *  details on the ADC channel mask. */
 	uint32_t ChEnMask;
 
@@ -116,6 +113,9 @@ typedef struct argus_meas_frame_t {
 	 *  Determines the optical output power. */
 	uq12_4_t OutputPower;
 
+	/*! The amplitude that is evaluated and used in the DCA module. */
+	uq12_4_t DCAAmplitude;
+
 	/*! Laser Bias Current Settings in LSB. */
 	uint8_t BiasCurrent;
 
@@ -133,7 +133,4 @@ typedef struct argus_meas_frame_t {
 } argus_meas_frame_t;
 
 /*! @} */
-#ifdef __cplusplus
-} // extern "C"
-#endif
 #endif /* ARGUS_MEAS_H */

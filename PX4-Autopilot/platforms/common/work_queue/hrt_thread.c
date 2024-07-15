@@ -113,7 +113,7 @@ static void _sighandler(int sig_num)
  *
  ****************************************************************************/
 
-static void hrt_work_process(void)
+static void hrt_work_process()
 {
 	struct wqueue_s *wqueue = &g_hrt_work;
 	volatile struct work_s *work;

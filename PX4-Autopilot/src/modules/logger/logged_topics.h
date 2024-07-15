@@ -88,7 +88,7 @@ public:
 		RequestedSubscription sub[MAX_TOPICS_NUM];
 		int count{0};
 
-		orb_id_size_t excluded_optional_topic_ids[MAX_EXCLUDED_OPTIONAL_TOPICS_NUM];
+		uint8_t excluded_optional_topic_ids[MAX_EXCLUDED_OPTIONAL_TOPICS_NUM];
 		int num_excluded_optional_topic_ids{0};
 	};
 

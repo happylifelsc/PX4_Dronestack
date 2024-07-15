@@ -262,11 +262,11 @@ public:
 	/**
 	 * @param jerk maximum jerk for generated trajectory
 	 */
-	inline void setMaxJerk(const float jerk)
+	inline void setMaxJerk(const Vector3f &jerk)
 	{
-		_trajectory[0].setMaxJerk(jerk);
-		_trajectory[1].setMaxJerk(jerk);
-		_trajectory[2].setMaxJerk(jerk);
+		_trajectory[0].setMaxJerk(jerk(0));
+		_trajectory[1].setMaxJerk(jerk(1));
+		_trajectory[2].setMaxJerk(jerk(2));
 	}
 
 	/**

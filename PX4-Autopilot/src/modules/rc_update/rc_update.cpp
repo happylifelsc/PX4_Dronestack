@@ -72,23 +72,23 @@ RCUpdate::RCUpdate() :
 		char nbuf[16];
 
 		/* min values */
-		snprintf(nbuf, sizeof(nbuf), "RC%d_MIN", i + 1);
+		sprintf(nbuf, "RC%d_MIN", i + 1);
 		_parameter_handles.min[i] = param_find(nbuf);
 
 		/* trim values */
-		snprintf(nbuf, sizeof(nbuf), "RC%d_TRIM", i + 1);
+		sprintf(nbuf, "RC%d_TRIM", i + 1);
 		_parameter_handles.trim[i] = param_find(nbuf);
 
 		/* max values */
-		snprintf(nbuf, sizeof(nbuf), "RC%d_MAX", i + 1);
+		sprintf(nbuf, "RC%d_MAX", i + 1);
 		_parameter_handles.max[i] = param_find(nbuf);
 
 		/* channel reverse */
-		snprintf(nbuf, sizeof(nbuf), "RC%d_REV", i + 1);
+		sprintf(nbuf, "RC%d_REV", i + 1);
 		_parameter_handles.rev[i] = param_find(nbuf);
 
 		/* channel deadzone */
-		snprintf(nbuf, sizeof(nbuf), "RC%d_DZ", i + 1);
+		sprintf(nbuf, "RC%d_DZ", i + 1);
 		_parameter_handles.dz[i] = param_find(nbuf);
 	}
 
@@ -101,7 +101,7 @@ RCUpdate::RCUpdate() :
 	}
 
 	rc_parameter_map_poll(true /* forced */);
-	updateParams(); // Call is needed to populate the _rc.function array
+	parameters_updated();
 
 	_button_pressed_hysteresis.set_hysteresis_time_from(false, 50_ms);
 }
@@ -123,12 +123,11 @@ bool RCUpdate::init()
 	return true;
 }
 
-void RCUpdate::updateParams()
+void RCUpdate::parameters_updated()
 {
-	ModuleParams::updateParams();
-
 	// rc values
 	for (unsigned int i = 0; i < RC_MAX_CHAN_COUNT; i++) {
+
 		float min = 0.f;
 		param_get(_parameter_handles.min[i], &min);
 		_parameters.min[i] = min;
@@ -156,20 +155,49 @@ void RCUpdate::updateParams()
 
 	update_rc_functions();
 
-	_rc_calibrated = _param_rc_chan_cnt.get() > 0
-			 && (_param_rc_map_throttle.get() > 0
-			     || _param_rc_map_roll.get() > 0
-			     || _param_rc_map_pitch.get() > 0
-			     || _param_rc_map_yaw.get() > 0);
-
+	// deprecated parameters, will be removed post v1.12 once QGC is updated
 	{
-		// deprecated parameter, needs to be fully removed from QGC
 		int32_t rc_map_value = 0;
 
 		if (param_get(param_find("RC_MAP_MODE_SW"), &rc_map_value) == PX4_OK) {
 			if (rc_map_value != 0) {
 				PX4_WARN("RC_MAP_MODE_SW deprecated");
 				param_reset(param_find("RC_MAP_MODE_SW"));
+			}
+		}
+
+		if (param_get(param_find("RC_MAP_RATT_SW"), &rc_map_value) == PX4_OK) {
+			if (rc_map_value != 0) {
+				PX4_WARN("RC_MAP_RATT_SW deprecated");
+				param_reset(param_find("RC_MAP_RATT_SW"));
+			}
+		}
+
+		if (param_get(param_find("RC_MAP_POSCTL_SW"), &rc_map_value) == PX4_OK) {
+			if (rc_map_value != 0) {
+				PX4_WARN("RC_MAP_POSCTL_SW deprecated");
+				param_reset(param_find("RC_MAP_POSCTL_SW"));
+			}
+		}
+
+		if (param_get(param_find("RC_MAP_ACRO_SW"), &rc_map_value) == PX4_OK) {
+			if (rc_map_value != 0) {
+				PX4_WARN("RC_MAP_ACRO_SW deprecated");
+				param_reset(param_find("RC_MAP_ACRO_SW"));
+			}
+		}
+
+		if (param_get(param_find("RC_MAP_STAB_SW"), &rc_map_value) == PX4_OK) {
+			if (rc_map_value != 0) {
+				PX4_WARN("RC_MAP_STAB_SW deprecated");
+				param_reset(param_find("RC_MAP_STAB_SW"));
+			}
+		}
+
+		if (param_get(param_find("RC_MAP_MAN_SW"), &rc_map_value) == PX4_OK) {
+			if (rc_map_value != 0) {
+				PX4_WARN("RC_MAP_MAN_SW deprecated");
+				param_reset(param_find("RC_MAP_MAN_SW"));
 			}
 		}
 	}
@@ -355,6 +383,7 @@ void RCUpdate::Run()
 
 		// update parameters from storage
 		updateParams();
+		parameters_updated();
 	}
 
 	rc_parameter_map_poll();
@@ -659,7 +688,6 @@ void RCUpdate::UpdateManualControlInput(const hrt_abstime &timestamp_sample)
 	manual_control_input.aux4  = get_rc_value(rc_channels_s::FUNCTION_AUX_4,   -1.f, 1.f);
 	manual_control_input.aux5  = get_rc_value(rc_channels_s::FUNCTION_AUX_5,   -1.f, 1.f);
 	manual_control_input.aux6  = get_rc_value(rc_channels_s::FUNCTION_AUX_6,   -1.f, 1.f);
-	manual_control_input.valid = _rc_calibrated;
 
 	// publish manual_control_input topic
 	manual_control_input.timestamp = hrt_absolute_time();

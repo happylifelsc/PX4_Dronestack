@@ -65,11 +65,9 @@ public:
 	/** stop all running threads and wait for them to exit */
 	void thread_stop();
 
-	bool start_log_file(LogType type, const char *filename);
+	void start_log_file(LogType type, const char *filename);
 
 	void stop_log_file(LogType type);
-
-	bool had_file_write_error() const;
 
 	void start_log_mavlink();
 

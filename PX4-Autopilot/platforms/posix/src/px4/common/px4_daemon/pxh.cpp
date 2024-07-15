@@ -40,7 +40,6 @@
  * @author Julian Oes <julian@oes.ch>
  */
 
-#include <cstdint>
 #include <string>
 #include <sstream>
 #include <vector>

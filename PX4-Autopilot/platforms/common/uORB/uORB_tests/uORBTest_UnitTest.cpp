@@ -111,7 +111,7 @@ int uORBTest::UnitTest::pubsublatency_main()
 
 	if (pubsubtest_print && timings) {
 		char fname[32] {};
-		snprintf(fname, sizeof(fname), PX4_STORAGEDIR"/uorb_timings%u.txt", timingsgroup);
+		sprintf(fname, PX4_STORAGEDIR"/uorb_timings%u.txt", timingsgroup);
 		FILE *f = fopen(fname, "w");
 
 		if (f == nullptr) {
@@ -574,8 +574,8 @@ int uORBTest::UnitTest::test_wrap_around()
 	bool updated{false};
 
 	// Advertise but not publish topics, only generate device_node, which is convenient for modifying DeviceNode::_generation
-	const int queue_size = orb_get_queue_size(ORB_ID(orb_test_medium_wrap_around));
-	ptopic = orb_advertise(ORB_ID(orb_test_medium_wrap_around), nullptr);
+	const int queue_size = 16;
+	ptopic = orb_advertise_queue(ORB_ID(orb_test_medium_wrap_around), nullptr, queue_size);
 
 	if (ptopic == nullptr) {
 		return test_fail("advertise failed: %d", errno);
@@ -828,9 +828,9 @@ int uORBTest::UnitTest::test_queue()
 		return test_fail("subscribe failed: %d", errno);
 	}
 
-	const int queue_size = orb_get_queue_size(ORB_ID(orb_test_medium_queue));
+	const int queue_size = 16;
 	orb_test_medium_s t{};
-	ptopic = orb_advertise(ORB_ID(orb_test_medium_queue), &t);
+	ptopic = orb_advertise_queue(ORB_ID(orb_test_medium_queue), &t, queue_size);
 
 	if (ptopic == nullptr) {
 		return test_fail("advertise failed: %d", errno);
@@ -935,9 +935,9 @@ int uORBTest::UnitTest::pub_test_queue_main()
 {
 	orb_test_medium_s t{};
 	orb_advert_t ptopic{nullptr};
-	const int queue_size = orb_get_queue_size(ORB_ID(orb_test_medium_queue_poll));
+	const int queue_size = 50;
 
-	if ((ptopic = orb_advertise(ORB_ID(orb_test_medium_queue_poll), &t)) == nullptr) {
+	if ((ptopic = orb_advertise_queue(ORB_ID(orb_test_medium_queue_poll), &t, queue_size)) == nullptr) {
 		_thread_should_exit = true;
 		return test_fail("advertise failed: %d", errno);
 	}

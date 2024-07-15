@@ -1,0 +1,12 @@
+menuconfig MODULES_MC_RESILIENT_ESTIMATOR
+	bool "mc_resilient_estimator"
+	default n
+	---help---
+		Enable support for mc_resilient_estimator
+
+menuconfig USER_MC_RESILIENT_ESTIMATOR
+	bool "mc_resilient_estimator running as userspace module"
+	default n
+	depends on BOARD_PROTECTED && MODULES_MC_RESILIENT_ESTIMATOR
+	---help---
+		Put mc_resilient_estimator in userspace memory

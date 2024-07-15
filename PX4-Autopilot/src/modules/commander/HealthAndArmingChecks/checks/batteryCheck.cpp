@@ -95,7 +95,6 @@ void BatteryChecks::checkAndReport(const Context &context, Report &reporter)
 	// option is to check if ANY of them have a warning, and specifically find which one has the most
 	// urgent warning.
 	uint8_t worst_warning = battery_status_s::BATTERY_WARNING_NONE;
-	float worst_battery_remaining = 1.f;
 	// To make sure that all connected batteries are being regularly reported, we check which one has the
 	// oldest timestamp.
 	hrt_abstime oldest_update = hrt_absolute_time();
@@ -155,10 +154,6 @@ void BatteryChecks::checkAndReport(const Context &context, Report &reporter)
 				worst_warning = battery.warning;
 			}
 
-			if (battery.remaining < worst_battery_remaining) {
-				worst_battery_remaining = battery.remaining;
-			}
-
 			if (battery.timestamp < oldest_update) {
 				oldest_update = battery.timestamp;
 			}
@@ -200,7 +195,6 @@ void BatteryChecks::checkAndReport(const Context &context, Report &reporter)
 	}
 
 	if (context.isArmed()) {
-		// if armed, only allow increase of battery warning severity
 		if (worst_warning > reporter.failsafeFlags().battery_warning) {
 			reporter.failsafeFlags().battery_warning = worst_warning;
 		}
@@ -211,42 +205,18 @@ void BatteryChecks::checkAndReport(const Context &context, Report &reporter)
 
 	if (reporter.failsafeFlags().battery_warning > battery_status_s::BATTERY_WARNING_NONE
 	    && reporter.failsafeFlags().battery_warning < battery_status_s::BATTERY_WARNING_FAILED) {
-		const bool critical_or_higher = reporter.failsafeFlags().battery_warning >= battery_status_s::BATTERY_WARNING_CRITICAL;
+		bool critical_or_higher = reporter.failsafeFlags().battery_warning >= battery_status_s::BATTERY_WARNING_CRITICAL;
 		NavModes affected_modes = critical_or_higher ? NavModes::All : NavModes::None;
 		events::LogLevel log_level = critical_or_higher ? events::Log::Critical : events::Log::Warning;
 		/* EVENT
-		 * @description
-		 * The battery state of charge of the worst battery is below the warning threshold.
-		 *
-		 * <profile name="dev">
-		 * This check can be configured via <param>BAT_LOW_THR</param>, <param>BAT_CRIT_THR</param> and <param>BAT_EMERGEN_THR</param> parameters.
-		 * </profile>
 		 */
 		reporter.armingCheckFailure(affected_modes, health_component_t::battery, events::ID("check_battery_low"), log_level,
 					    "Low battery");
 
 		if (reporter.mavlink_log_pub()) {
-			mavlink_log_emergency(reporter.mavlink_log_pub(), "Low battery level\t");
+			mavlink_log_emergency(reporter.mavlink_log_pub(), "Preflight Fail: low battery\t");
 		}
 
-	} else if (!context.isArmed() && _param_arm_battery_level_min.get() > FLT_EPSILON
-		   && worst_battery_remaining < _param_arm_battery_level_min.get()) {
-		// if not armed, additionally check if the battery is below the separately configurable preflight threshold
-		/* EVENT
-		 * @description
-		 * The battery state of charge of the worst battery is below the preflight threshold.
-		 *
-		 * <profile name="dev">
-		 * This check can be configured via <param>COM_ARM_BAT_MIN</param> parameter.
-		 * </profile>
-		 */
-		reporter.armingCheckFailure(NavModes::All, health_component_t::battery, events::ID("check_battery_preflight_low"),
-					    events::Log::Critical,
-					    "Low battery");
-
-		if (reporter.mavlink_log_pub()) {
-			mavlink_log_emergency(reporter.mavlink_log_pub(), "Low battery level\t");
-		}
 	}
 
 	rtlEstimateCheck(context, reporter, worst_battery_time_s);
@@ -285,16 +255,12 @@ void BatteryChecks::rtlEstimateCheck(const Context &context, Report &reporter, f
 	rtl_time_estimate_s rtl_time_estimate;
 
 	// Compare estimate of RTL time to estimate of remaining flight time
-	// add hysterisis: if already in the condition, only get out of it if the remaining flight time is significantly higher again
-	const float hysteresis_factor = reporter.failsafeFlags().battery_low_remaining_time ? 1.1f : 1.0f;
-
 	reporter.failsafeFlags().battery_low_remaining_time = _rtl_time_estimate_sub.copy(&rtl_time_estimate)
-			&& (hrt_absolute_time() - rtl_time_estimate.timestamp) < 3_s
+			&& (hrt_absolute_time() - rtl_time_estimate.timestamp) < 2_s
 			&& rtl_time_estimate.valid
 			&& context.isArmed()
 			&& PX4_ISFINITE(worst_battery_time_s)
-			&& rtl_time_estimate.safe_time_estimate * hysteresis_factor >= worst_battery_time_s;
-
+			&& rtl_time_estimate.safe_time_estimate >= worst_battery_time_s;
 
 	if (reporter.failsafeFlags().battery_low_remaining_time) {
 		/* EVENT

@@ -55,6 +55,7 @@ NavigatorMode::run(bool active)
 {
 	if (active) {
 		if (!_active) {
+			_navigator->set_mission_result_updated();
 			on_activation();
 
 		} else {

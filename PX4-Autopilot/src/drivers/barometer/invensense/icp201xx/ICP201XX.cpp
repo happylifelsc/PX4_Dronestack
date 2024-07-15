@@ -144,8 +144,7 @@ ICP201XX::RunImpl()
 			if (version == 0xB2) {
 				/* B2 version Asic is detected. Boot up sequence is not required for B2 Asic, so returning */
 				_state = STATE::CONFIG;
-				ScheduleDelayed(30_ms);
-				break;
+				ScheduleDelayed(10_ms);
 			}
 
 			/* Read boot up status and avoid re running boot up sequence if it is already done */
@@ -251,7 +250,7 @@ ICP201XX::RunImpl()
 	case STATE::CONFIG: {
 			if (configure()) {
 				_state = STATE::WAIT_READ;
-				ScheduleDelayed(50_ms);
+				ScheduleDelayed(30_ms);
 
 			} else {
 				if (hrt_elapsed_time(&_reset_timestamp) > 1000_ms) {

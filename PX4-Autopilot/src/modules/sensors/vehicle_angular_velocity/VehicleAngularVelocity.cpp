@@ -79,7 +79,7 @@ bool VehicleAngularVelocity::Start()
 		return false;
 	}
 
-	if (!SensorSelectionUpdate(hrt_absolute_time(), true)) {
+	if (!SensorSelectionUpdate(true)) {
 		ScheduleNow();
 	}
 
@@ -277,7 +277,7 @@ bool VehicleAngularVelocity::SensorSelectionUpdate(const hrt_abstime &time_now_u
 					// if no gyro was selected use the first valid sensor_gyro_fifo
 					if (!device_id_valid) {
 						device_id = sensor_gyro_fifo_sub.get().device_id;
-						PX4_DEBUG("no gyro selected, using sensor_gyro_fifo:%" PRIu8 " %" PRIu32, i, sensor_gyro_fifo_sub.get().device_id);
+						PX4_WARN("no gyro selected, using sensor_gyro_fifo:%" PRIu8 " %" PRIu32, i, sensor_gyro_fifo_sub.get().device_id);
 					}
 
 					if (sensor_gyro_fifo_sub.get().device_id == device_id) {
@@ -319,7 +319,7 @@ bool VehicleAngularVelocity::SensorSelectionUpdate(const hrt_abstime &time_now_u
 					// if no gyro was selected use the first valid sensor_gyro
 					if (!device_id_valid) {
 						device_id = sensor_gyro_sub.get().device_id;
-						PX4_DEBUG("no gyro selected, using sensor_gyro:%" PRIu8 " %" PRIu32, i, sensor_gyro_sub.get().device_id);
+						PX4_WARN("no gyro selected, using sensor_gyro:%" PRIu8 " %" PRIu32, i, sensor_gyro_sub.get().device_id);
 					}
 
 					if (sensor_gyro_sub.get().device_id == device_id) {
@@ -790,8 +790,6 @@ void VehicleAngularVelocity::Run()
 
 	const hrt_abstime time_now_us = hrt_absolute_time();
 
-	ParametersUpdate();
-
 	// update corrections first to set _selected_sensor
 	const bool selection_updated = SensorSelectionUpdate(time_now_us);
 
@@ -803,8 +801,9 @@ void VehicleAngularVelocity::Run()
 		}
 	}
 
-	_calibration.SensorCorrectionsUpdate(selection_updated);
+	ParametersUpdate();
 
+	_calibration.SensorCorrectionsUpdate(selection_updated);
 	SensorBiasUpdate(selection_updated);
 
 	if (_reset_filters) {
@@ -822,12 +821,9 @@ void VehicleAngularVelocity::Run()
 
 	if (_fifo_available) {
 		// process all outstanding fifo messages
-		int sensor_sub_updates = 0;
 		sensor_gyro_fifo_s sensor_fifo_data;
 
-		while ((sensor_sub_updates < sensor_gyro_fifo_s::ORB_QUEUE_LENGTH) && _sensor_gyro_fifo_sub.update(&sensor_fifo_data)) {
-			sensor_sub_updates++;
-
+		while (_sensor_gyro_fifo_sub.update(&sensor_fifo_data)) {
 			const float inverse_dt_s = 1e6f / sensor_fifo_data.dt;
 			const int N = sensor_fifo_data.samples;
 			static constexpr int FIFO_SIZE_MAX = sizeof(sensor_fifo_data.x) / sizeof(sensor_fifo_data.x[0]);
@@ -866,12 +862,9 @@ void VehicleAngularVelocity::Run()
 
 	} else {
 		// process all outstanding messages
-		int sensor_sub_updates = 0;
 		sensor_gyro_s sensor_data;
 
-		while ((sensor_sub_updates < sensor_gyro_s::ORB_QUEUE_LENGTH) && _sensor_sub.update(&sensor_data)) {
-			sensor_sub_updates++;
-
+		while (_sensor_sub.update(&sensor_data)) {
 			if (Vector3f(sensor_data.x, sensor_data.y, sensor_data.z).isAllFinite()) {
 
 				if (_timestamp_sample_last == 0 || (sensor_data.timestamp_sample <= _timestamp_sample_last)) {
@@ -912,7 +905,7 @@ void VehicleAngularVelocity::Run()
 
 	// force reselection on timeout
 	if (time_now_us > _last_publish + 500_ms) {
-		SensorSelectionUpdate(time_now_us, true);
+		SensorSelectionUpdate(true);
 	}
 
 	perf_end(_cycle_perf);

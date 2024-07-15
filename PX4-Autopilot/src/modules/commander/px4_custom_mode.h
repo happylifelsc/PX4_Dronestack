@@ -50,8 +50,7 @@ enum PX4_CUSTOM_MAIN_MODE {
 	PX4_CUSTOM_MAIN_MODE_OFFBOARD,
 	PX4_CUSTOM_MAIN_MODE_STABILIZED,
 	PX4_CUSTOM_MAIN_MODE_RATTITUDE_LEGACY,
-	PX4_CUSTOM_MAIN_MODE_SIMPLE, /* unused, but reserved for future use */
-	PX4_CUSTOM_MAIN_MODE_TERMINATION
+	PX4_CUSTOM_MAIN_MODE_SIMPLE /* unused, but reserved for future use */
 };
 
 enum PX4_CUSTOM_SUB_MODE_AUTO {
@@ -64,21 +63,12 @@ enum PX4_CUSTOM_SUB_MODE_AUTO {
 	PX4_CUSTOM_SUB_MODE_AUTO_RESERVED_DO_NOT_USE, // was PX4_CUSTOM_SUB_MODE_AUTO_RTGS, deleted 2020-03-05
 	PX4_CUSTOM_SUB_MODE_AUTO_FOLLOW_TARGET,
 	PX4_CUSTOM_SUB_MODE_AUTO_PRECLAND,
-	PX4_CUSTOM_SUB_MODE_AUTO_VTOL_TAKEOFF,
-	PX4_CUSTOM_SUB_MODE_EXTERNAL1,
-	PX4_CUSTOM_SUB_MODE_EXTERNAL2,
-	PX4_CUSTOM_SUB_MODE_EXTERNAL3,
-	PX4_CUSTOM_SUB_MODE_EXTERNAL4,
-	PX4_CUSTOM_SUB_MODE_EXTERNAL5,
-	PX4_CUSTOM_SUB_MODE_EXTERNAL6,
-	PX4_CUSTOM_SUB_MODE_EXTERNAL7,
-	PX4_CUSTOM_SUB_MODE_EXTERNAL8,
+	PX4_CUSTOM_SUB_MODE_AUTO_VTOL_TAKEOFF
 };
 
 enum PX4_CUSTOM_SUB_MODE_POSCTL {
 	PX4_CUSTOM_SUB_MODE_POSCTL_POSCTL = 0,
-	PX4_CUSTOM_SUB_MODE_POSCTL_ORBIT,
-	PX4_CUSTOM_SUB_MODE_POSCTL_SLOW
+	PX4_CUSTOM_SUB_MODE_POSCTL_ORBIT
 };
 
 union px4_custom_mode {
@@ -116,11 +106,6 @@ static inline union px4_custom_mode get_px4_custom_mode(uint8_t nav_state)
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_POSCTL;
 		break;
 
-	case vehicle_status_s::NAVIGATION_STATE_POSITION_SLOW:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_POSCTL;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_POSCTL_SLOW;
-		break;
-
 	case vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION:
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
 		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_AUTO_MISSION;
@@ -146,7 +131,7 @@ static inline union px4_custom_mode get_px4_custom_mode(uint8_t nav_state)
 		break;
 
 	case vehicle_status_s::NAVIGATION_STATE_TERMINATION:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_TERMINATION;
+		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_MANUAL;
 		break;
 
 	case vehicle_status_s::NAVIGATION_STATE_OFFBOARD:
@@ -185,46 +170,6 @@ static inline union px4_custom_mode get_px4_custom_mode(uint8_t nav_state)
 	case vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF:
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
 		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_AUTO_VTOL_TAKEOFF;
-		break;
-
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL1:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL1;
-		break;
-
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL2:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL2;
-		break;
-
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL3:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL3;
-		break;
-
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL4:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL4;
-		break;
-
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL5:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL5;
-		break;
-
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL6;
-		break;
-
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL7:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL7;
-		break;
-
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL8:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL8;
 		break;
 	}
 

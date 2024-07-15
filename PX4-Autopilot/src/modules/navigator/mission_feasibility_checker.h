@@ -42,27 +42,26 @@
 
 #pragma once
 
-#include <dataman_client/DatamanClient.hpp>
+#include <dataman/dataman.h>
 #include <uORB/topics/mission.h>
 #include <px4_platform_common/module_params.h>
 #include "MissionFeasibility/FeasibilityChecker.hpp"
 
+class Geofence;
 class Navigator;
 
 class MissionFeasibilityChecker: public ModuleParams
 {
 private:
 	Navigator *_navigator{nullptr};
-	DatamanClient &_dataman_client;
 	FeasibilityChecker _feasibility_checker;
 
-	bool checkMissionAgainstGeofence(const mission_s &mission, float home_alt, bool home_valid);
+	bool checkGeofence(const mission_s &mission, float home_alt, bool home_valid);
 
 public:
-	MissionFeasibilityChecker(Navigator *navigator, DatamanClient &dataman_client) :
+	MissionFeasibilityChecker(Navigator *navigator) :
 		ModuleParams(nullptr),
 		_navigator(navigator),
-		_dataman_client(dataman_client),
 		_feasibility_checker()
 	{
 

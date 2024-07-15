@@ -86,8 +86,7 @@ private:
 				msg.area_floor = -1000;
 				msg.category_eu = MAV_ODID_CATEGORY_EU_UNDECLARED;
 				msg.class_eu = MAV_ODID_CLASS_EU_UNDECLARED;
-				float wgs84_amsl_offset = vehicle_gps_position.altitude_ellipsoid_m - vehicle_gps_position.altitude_msl_m;
-				msg.operator_altitude_geo = home_position.alt + wgs84_amsl_offset;
+				msg.operator_altitude_geo = home_position.alt;
 
 				// timestamp: 32 bit Unix Timestamp in seconds since 00:00:00 01/01/2019.
 				static uint64_t utc_offset_s = 1'546'300'800; // UTC seconds since 00:00:00 01/01/2019

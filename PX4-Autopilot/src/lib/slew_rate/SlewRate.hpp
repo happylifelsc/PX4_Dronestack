@@ -49,7 +49,6 @@ class SlewRate
 {
 public:
 	SlewRate() = default;
-	SlewRate(Type initial_value) { setForcedValue(initial_value); }
 	~SlewRate() = default;
 
 	/**

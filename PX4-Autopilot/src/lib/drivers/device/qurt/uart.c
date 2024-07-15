@@ -25,32 +25,19 @@ void configure_uart_callbacks(open_uart_func_t open_func,
 	}
 }
 
-int qurt_uart_get_port(const char *dev)
+int qurt_uart_open(const char *dev, speed_t speed)
 {
-	if (dev != NULL) {
+	if (_callbacks_configured) {
 		// Convert device string into a uart port number
 		char *endptr = NULL;
-		int port_number = strtol(dev, &endptr, 10);
+		uint8_t port_number = (uint8_t) strtol(dev, &endptr, 10);
 
 		if ((port_number == 0) && (endptr == dev)) {
 			PX4_ERR("Could not convert %s into a valid uart port number", dev);
 			return -1;
-
-		} else {
-			return port_number;
 		}
-	}
 
-	return -1;
-}
-
-int qurt_uart_open(const char *dev, speed_t speed)
-{
-	int port_number = qurt_uart_get_port(dev);
-
-	if (_callbacks_configured && (port_number >= 0)) {
-
-		return _open_uart((uint8_t) port_number, speed);
+		return _open_uart(port_number, speed);
 
 	} else {
 		PX4_ERR("Cannot open uart until callbacks have been configured");

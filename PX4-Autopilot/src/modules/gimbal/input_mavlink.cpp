@@ -323,28 +323,23 @@ InputMavlinkCmdMount::_process_command(ControlData &control_data, const vehicle_
 		};
 
 		for (int i = 0; i < 3; ++i) {
-			switch (params[i]) {
 
-			case 0:
+			if (params[i] == 0) {
 				control_data.type_data.angle.frames[i] =
 					ControlData::TypeData::TypeAngle::Frame::AngleBodyFrame;
-				break;
 
-			case 1:
+			} else if (params[i] == 1) {
 				control_data.type_data.angle.frames[i] =
 					ControlData::TypeData::TypeAngle::Frame::AngularRate;
-				break;
 
-			case 2:
+			} else if (params[i] == 2) {
 				control_data.type_data.angle.frames[i] =
 					ControlData::TypeData::TypeAngle::Frame::AngleAbsoluteFrame;
-				break;
 
-			default:
+			} else {
 				// Not supported, fallback to body angle.
 				control_data.type_data.angle.frames[i] =
 					ControlData::TypeData::TypeAngle::Frame::AngleBodyFrame;
-				break;
 			}
 		}
 
@@ -518,7 +513,7 @@ InputMavlinkGimbalV2::update(unsigned int timeout_ms, ControlData &control_data,
 	// We can't return early instead because we need to copy all topics that triggered poll.
 
 	bool exit_loop = false;
-	UpdateResult update_result = UpdateResult::NoUpdate;
+	UpdateResult update_result = already_active ? UpdateResult::UpdatedActive : UpdateResult::NoUpdate;
 
 	while (!exit_loop && poll_timeout >= 0) {
 
@@ -750,28 +745,23 @@ InputMavlinkGimbalV2::_process_command(ControlData &control_data, const vehicle_
 		};
 
 		for (int i = 0; i < 3; ++i) {
-			switch (params[i]) {
 
-			case 0:
+			if (params[i] == 0) {
 				control_data.type_data.angle.frames[i] =
 					ControlData::TypeData::TypeAngle::Frame::AngleBodyFrame;
-				break;
 
-			case 1:
+			} else if (params[i] == 1) {
 				control_data.type_data.angle.frames[i] =
 					ControlData::TypeData::TypeAngle::Frame::AngularRate;
-				break;
 
-			case 2:
+			} else if (params[i] == 2) {
 				control_data.type_data.angle.frames[i] =
 					ControlData::TypeData::TypeAngle::Frame::AngleAbsoluteFrame;
-				break;
 
-			default:
+			} else {
 				// Not supported, fallback to body angle.
 				control_data.type_data.angle.frames[i] =
 					ControlData::TypeData::TypeAngle::Frame::AngleBodyFrame;
-				break;
 			}
 		}
 
@@ -785,22 +775,19 @@ InputMavlinkGimbalV2::_process_command(ControlData &control_data, const vehicle_
 		const int param_compid = roundf(vehicle_command.param2);
 
 		uint8_t new_sysid_primary_control = [&]() {
-			switch (param_sysid) {
-
-			case 0 ... 255:
+			if (param_sysid >= 0 && param_sysid < 256) {
 				// Valid new sysid.
 				return (uint8_t) param_sysid;
 
-			case -1:
+			} else if (param_sysid == -1) {
 				// leave unchanged
 				return control_data.sysid_primary_control;
 
-			case -2:
+			} else if (param_sysid == -2) {
 				// set itself
 				return (uint8_t) _parameters.mav_sysid;
 
-			case -3:
-
+			} else if (param_sysid == -3) {
 				// release control if in control
 				if (control_data.sysid_primary_control == vehicle_command.source_system) {
 					return (uint8_t) 0;
@@ -809,28 +796,26 @@ InputMavlinkGimbalV2::_process_command(ControlData &control_data, const vehicle_
 					return control_data.sysid_primary_control;
 				}
 
-			default:
+			} else {
 				PX4_WARN("Unknown param1 value for DO_GIMBAL_MANAGER_CONFIGURE");
 				return control_data.sysid_primary_control;
 			}
 		}();
 
 		uint8_t new_compid_primary_control = [&]() {
-			switch (param_compid) {
-			case 0 ... 255:
+			if (param_compid >= 0 && param_compid < 256) {
 				// Valid new compid.
 				return (uint8_t) param_compid;
 
-			case -1:
+			} else if (param_compid == -1) {
 				// leave unchanged
 				return control_data.compid_primary_control;
 
-			case -2:
+			} else if (param_compid == -2) {
 				// set itself
 				return (uint8_t) _parameters.mav_compid;
 
-			case -3:
-
+			} else if (param_compid == -3) {
 				// release control if in control
 				if (control_data.compid_primary_control == vehicle_command.source_component) {
 					return (uint8_t) 0;
@@ -839,7 +824,7 @@ InputMavlinkGimbalV2::_process_command(ControlData &control_data, const vehicle_
 					return control_data.compid_primary_control;
 				}
 
-			default:
+			} else {
 				PX4_WARN("Unknown param2 value for DO_GIMBAL_MANAGER_CONFIGURE");
 				return control_data.compid_primary_control;
 			}
@@ -856,9 +841,7 @@ InputMavlinkGimbalV2::_process_command(ControlData &control_data, const vehicle_
 			control_data.compid_primary_control = new_compid_primary_control;
 		}
 
-		// Just doing the configuration doesn't mean there is actually an update to use yet.
-		// After that we still need to have an actual setpoint.
-		return UpdateResult::NoUpdate;
+		return UpdateResult::UpdatedActive;
 
 		// TODO: support secondary control
 		// TODO: support gimbal device id for multiple gimbals
@@ -882,7 +865,7 @@ InputMavlinkGimbalV2::_process_command(ControlData &control_data, const vehicle_
 			_ack_vehicle_command(vehicle_command,
 					     vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED);
 
-			return UpdateResult::UpdatedActiveOnce;
+			return UpdateResult::UpdatedActive;
 
 		} else {
 			PX4_INFO("GIMBAL_MANAGER_PITCHYAW from %d/%d denied, in control: %d/%d",

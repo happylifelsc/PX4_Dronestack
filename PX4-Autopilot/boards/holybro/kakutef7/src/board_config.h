@@ -113,7 +113,6 @@
 /* RC Serial port */
 
 #define RC_SERIAL_PORT                     "/dev/ttyS4"
-#define RC_SERIAL_SINGLEWIRE
 
 #define GPIO_RSSI_IN                       /* PC5  */ (GPIO_INPUT|GPIO_PULLUP|GPIO_PORTC|GPIO_PIN5)
 
@@ -129,8 +128,6 @@
 		GPIO_TONE_ALARM_IDLE,             \
 		GPIO_RSSI_IN,                \
 	}
-
-#define BOARD_ENABLE_CONSOLE_BUFFER
 
 #define BOARD_NUM_IO_TIMERS 4
 

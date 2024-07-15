@@ -43,7 +43,11 @@
 #include <systemlib/err.h>
 #include <drivers/drv_hrt.h>
 
+#ifndef MAVLINK_FTP_UNIT_TEST
 #include "mavlink_bridge_header.h"
+#else
+#include <mavlink.h>
+#endif
 
 class MavlinkFtpTest;
 class Mavlink;
@@ -52,7 +56,7 @@ class Mavlink;
 class MavlinkFTP
 {
 public:
-	MavlinkFTP(Mavlink &mavlink);
+	MavlinkFTP(Mavlink *mavlink);
 	~MavlinkFTP();
 
 	/**
@@ -151,11 +155,6 @@ private:
 	uint8_t _getServerComponentId(void);
 	uint8_t _getServerChannel(void);
 
-	/**
-	 * Construct local path by appending `path` to `_root_dir` and storing the result in `dst`.
-	 */
-	void _constructPath(char *dst, int dst_len, const char *path) const;
-
 	bool _validatePathIsWritable(const char *path);
 
 	/**
@@ -186,7 +185,7 @@ private:
 	ReceiveMessageFunc_t	_utRcvMsgFunc{};	///< Unit test override for mavlink message sending
 	void			*_worker_data{nullptr};	///< Additional parameter to _utRcvMsgFunc;
 
-	Mavlink &_mavlink;
+	Mavlink *_mavlink;
 
 	/* do not allow copying this class */
 	MavlinkFTP(const MavlinkFTP &);

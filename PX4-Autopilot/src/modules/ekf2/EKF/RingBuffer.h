@@ -153,7 +153,6 @@ public:
 		return false;
 	}
 
-	int get_used_size() const { return sizeof(*this) + sizeof(data_type) * entries(); }
 	int get_total_size() const { return sizeof(*this) + sizeof(data_type) * _size; }
 
 	int entries() const

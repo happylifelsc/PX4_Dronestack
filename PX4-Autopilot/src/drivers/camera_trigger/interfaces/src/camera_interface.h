@@ -39,7 +39,8 @@
 
 #include <parameters/param.h>
 #include <px4_platform_common/log.h>
-#include <systemlib/px4_macros.h>
+
+#define arraySize(a) (sizeof((a))/sizeof(((a)[0])))
 
 class CameraInterface
 {

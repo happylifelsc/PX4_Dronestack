@@ -62,21 +62,4 @@
 /*
  *  Default port for the ESC
  */
-#define VOXL_ESC_DEFAULT_PORT 	"2"
-
-/*
- *  Default port for the GHST RC
- */
-#define GHST_RC_DEFAULT_PORT 	"7"
-
-/*
- * Default port for M0065
-*/
-#define VOXL2_IO_DEFAULT_PORT 	"2"
-
-
-/*
- * M0065 PWM
- */
-#define DIRECT_PWM_OUTPUT_CHANNELS 4
-#define MAX_IO_TIMERS 3
+#define MODAL_IO_DEFAULT_PORT 	"2"

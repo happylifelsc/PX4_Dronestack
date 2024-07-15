@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019-2023 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2019 ECL Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +42,8 @@
 #include <vector>
 #include <mathlib/mathlib.h>
 
+#include "EKF/utils.hpp"
+
 TEST(eclPowfTest, compareToStandardImplementation)
 {
 	std::vector<int> exponents = {-3, -2, -1, -0, 0, 1, 2, 3};
@@ -49,7 +51,7 @@ TEST(eclPowfTest, compareToStandardImplementation)
 
 	for (auto const exponent : exponents) {
 		for (auto const basis : bases) {
-			EXPECT_EQ(powf(basis, exponent),
+			EXPECT_EQ(ecl::powf(basis, exponent),
 				  std::pow(basis, static_cast<float>(exponent)));
 		}
 	}

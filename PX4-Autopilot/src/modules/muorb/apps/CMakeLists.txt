@@ -39,7 +39,6 @@ px4_add_module(
 	INCLUDES
 		../test
 		../aggregator
-		${PX4_BOARD_DIR}/libfc-sensor-api/inc
 	SRCS
 		uORBAppsProtobufChannel.cpp
 		muorb_main.cpp

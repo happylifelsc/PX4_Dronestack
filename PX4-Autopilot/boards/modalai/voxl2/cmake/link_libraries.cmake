@@ -1,7 +1,7 @@
 
-# Link against the public stub version of the proprietary fc sensor library
+# libfc_sensor.so is provided in the Docker build environment
 target_link_libraries(px4 PRIVATE
-		${PX4_BOARD_DIR}/libfc-sensor-api/build/libfc_sensor.so
+		/home/libfc_sensor.so
 		px4_layer
 		${module_libraries}
 )

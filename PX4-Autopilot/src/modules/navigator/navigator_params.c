@@ -43,7 +43,7 @@
 /**
  * Loiter radius (FW only)
  *
- * Default value of loiter radius in FW mode (e.g. for Loiter mode).
+ * Default value of loiter radius for missions, Hold mode, Return mode, etc. (fixedwing only).
  *
  * @unit m
  * @min 25

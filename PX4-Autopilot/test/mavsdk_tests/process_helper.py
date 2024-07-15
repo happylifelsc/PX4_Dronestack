@@ -221,8 +221,7 @@ class GzserverRunner(Runner):
                  case: str,
                  speed_factor: float,
                  verbose: bool,
-                 build_dir: str,
-                 world_name: str):
+                 build_dir: str):
         super().__init__(log_dir, model, case, verbose)
         self.name = "gzserver"
         self.cwd = workspace_dir
@@ -235,7 +234,7 @@ class GzserverRunner(Runner):
         self.args = ["-o0", "-e0", "gzserver", "--verbose",
                      os.path.join(workspace_dir,
                                   PX4_GAZEBO_WORLDS,
-                                  world_name)]
+                                  "empty.world")]
 
     def has_started_ok(self) -> bool:
         # Wait until gzerver has started and connected to gazebo master.

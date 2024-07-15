@@ -61,7 +61,7 @@
 
 #include <matrix/matrix/math.hpp>   // matrix, vectors, dcm, quaterions
 #include <conversion/rotation.h>    // math::radians,
-#include <lib/atmosphere/atmosphere.h>        // to get the physical constants
+#include <lib/geo/geo.h>        // to get the physical constants
 #include <drivers/drv_hrt.h>        // to get the real time
 #include <lib/drivers/accelerometer/PX4Accelerometer.hpp>
 #include <lib/drivers/gyroscope/PX4Gyroscope.hpp>
@@ -134,7 +134,7 @@ private:
 	// hard constants
 	static constexpr uint16_t NB_MOTORS = 6;
 	static constexpr float T1_C = 15.0f;                        // ground temperature in Celsius
-	static constexpr float T1_K = T1_C - atmosphere::kAbsoluteNullCelsius;   // ground temperature in Kelvin
+	static constexpr float T1_K = T1_C - CONSTANTS_ABSOLUTE_NULL_CELSIUS;   // ground temperature in Kelvin
 	static constexpr float TEMP_GRADIENT = -6.5f / 1000.0f;    // temperature gradient in degrees per metre
 	// Aerodynamic coefficients
 	static constexpr float RHO = 1.225f; 		// air density at sea level [kg/m^3]
@@ -273,8 +273,8 @@ private:
 		(ParamFloat<px4::params::SIH_L_PITCH>) _sih_l_pitch,
 		(ParamFloat<px4::params::SIH_KDV>) _sih_kdv,
 		(ParamFloat<px4::params::SIH_KDW>) _sih_kdw,
-		(ParamFloat<px4::params::SIH_LOC_LAT0>) _sih_lat0,
-		(ParamFloat<px4::params::SIH_LOC_LON0>) _sih_lon0,
+		(ParamInt<px4::params::SIH_LOC_LAT0>) _sih_lat0,
+		(ParamInt<px4::params::SIH_LOC_LON0>) _sih_lon0,
 		(ParamFloat<px4::params::SIH_LOC_H0>) _sih_h0,
 		(ParamFloat<px4::params::SIH_DISTSNSR_MIN>) _sih_distance_snsr_min,
 		(ParamFloat<px4::params::SIH_DISTSNSR_MAX>) _sih_distance_snsr_max,

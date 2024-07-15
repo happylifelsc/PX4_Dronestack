@@ -50,7 +50,7 @@
 #pragma once
 
 #include <drivers/drv_hrt.h>
-#include <lib/atmosphere/atmosphere.h>
+#include <lib/geo/geo.h>
 #include <lib/mathlib/mathlib.h>
 #include <lib/perf/perf_counter.h>
 #include <matrix/math.hpp>
@@ -91,6 +91,8 @@
 using namespace time_literals;
 
 extern "C" __EXPORT int vtol_att_control_main(int argc, char *argv[]);
+
+static constexpr float kMaxVTOLAttitudeControlTimeStep = 0.1f; // max time step [s]
 
 class VtolAttitudeControl : public ModuleBase<VtolAttitudeControl>, public ModuleParams, public px4::WorkItem
 {
@@ -207,11 +209,9 @@ private:
 	vtol_vehicle_status_s 			_vtol_vehicle_status{};
 	float _home_position_z{NAN};
 
-	float _air_density{atmosphere::kAirDensitySeaLevelStandardAtmos};	// [kg/m^3]
+	float _air_density{CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C};	// [kg/m^3]
 
-#if !defined(ENABLE_LOCKSTEP_SCHEDULER)
-	hrt_abstime _last_run_timestamp {0};
-#endif // !ENABLE_LOCKSTEP_SCHEDULER
+	hrt_abstime _last_run_timestamp{0};
 
 	/* For multicopters it is usual to have a non-zero idle speed of the engines
 	 * for fixed wings we want to have an idle speed of zero since we do not want

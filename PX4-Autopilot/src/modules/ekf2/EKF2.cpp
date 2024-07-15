@@ -40,9 +40,6 @@ using matrix::Eulerf;
 using matrix::Quatf;
 using matrix::Vector3f;
 
-static constexpr float kDefaultExternalPosAccuracy = 50.0f; // [m]
-static constexpr float kMaxDelaySecondsExternalPosMeasurement = 15.0f; // [s]
-
 pthread_mutex_t ekf2_module_mutex = PTHREAD_MUTEX_INITIALIZER;
 static px4::atomic<EKF2 *> _objects[EKF2_MAX_INSTANCES] {};
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
@@ -59,13 +56,13 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_local_position_pub(multi_mode ? ORB_ID(estimator_local_position) : ORB_ID(vehicle_local_position)),
 	_global_position_pub(multi_mode ? ORB_ID(estimator_global_position) : ORB_ID(vehicle_global_position)),
 	_odometry_pub(multi_mode ? ORB_ID(estimator_odometry) : ORB_ID(vehicle_odometry)),
-#if defined(CONFIG_EKF2_WIND)
 	_wind_pub(multi_mode ? ORB_ID(estimator_wind) : ORB_ID(wind)),
-#endif // CONFIG_EKF2_WIND
 	_params(_ekf.getParamHandle()),
 	_param_ekf2_predict_us(_params->filter_update_interval_us),
-	_param_ekf2_delay_max(_params->delay_max_ms),
 	_param_ekf2_imu_ctrl(_params->imu_ctrl),
+	_param_ekf2_mag_delay(_params->mag_delay_ms),
+	_param_ekf2_baro_delay(_params->baro_delay_ms),
+	_param_ekf2_gps_delay(_params->gps_delay_ms),
 #if defined(CONFIG_EKF2_AUXVEL)
 	_param_ekf2_avel_delay(_params->auxvel_delay_ms),
 #endif // CONFIG_EKF2_AUXVEL
@@ -73,46 +70,18 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_acc_noise(_params->accel_noise),
 	_param_ekf2_gyr_b_noise(_params->gyro_bias_p_noise),
 	_param_ekf2_acc_b_noise(_params->accel_bias_p_noise),
-#if defined(CONFIG_EKF2_WIND)
+	_param_ekf2_mag_e_noise(_params->mage_p_noise),
+	_param_ekf2_mag_b_noise(_params->magb_p_noise),
 	_param_ekf2_wind_nsd(_params->wind_vel_nsd),
-#endif // CONFIG_EKF2_WIND
-	_param_ekf2_noaid_noise(_params->pos_noaid_noise),
-#if defined(CONFIG_EKF2_GNSS)
-	_param_ekf2_gps_ctrl(_params->gnss_ctrl),
-	_param_ekf2_gps_delay(_params->gps_delay_ms),
-	_param_ekf2_gps_pos_x(_params->gps_pos_body(0)),
-	_param_ekf2_gps_pos_y(_params->gps_pos_body(1)),
-	_param_ekf2_gps_pos_z(_params->gps_pos_body(2)),
 	_param_ekf2_gps_v_noise(_params->gps_vel_noise),
 	_param_ekf2_gps_p_noise(_params->gps_pos_noise),
-	_param_ekf2_gps_p_gate(_params->gps_pos_innov_gate),
-	_param_ekf2_gps_v_gate(_params->gps_vel_innov_gate),
-	_param_ekf2_gps_check(_params->gps_check_mask),
-	_param_ekf2_req_eph(_params->req_hacc),
-	_param_ekf2_req_epv(_params->req_vacc),
-	_param_ekf2_req_sacc(_params->req_sacc),
-	_param_ekf2_req_nsats(_params->req_nsats),
-	_param_ekf2_req_pdop(_params->req_pdop),
-	_param_ekf2_req_hdrift(_params->req_hdrift),
-	_param_ekf2_req_vdrift(_params->req_vdrift),
-	_param_ekf2_gsf_tas_default(_params->EKFGSF_tas_default),
-#endif // CONFIG_EKF2_GNSS
-#if defined(CONFIG_EKF2_BAROMETER)
-	_param_ekf2_baro_ctrl(_params->baro_ctrl),
-	_param_ekf2_baro_delay(_params->baro_delay_ms),
+	_param_ekf2_noaid_noise(_params->pos_noaid_noise),
 	_param_ekf2_baro_noise(_params->baro_noise),
 	_param_ekf2_baro_gate(_params->baro_innov_gate),
 	_param_ekf2_gnd_eff_dz(_params->gnd_effect_deadzone),
 	_param_ekf2_gnd_max_hgt(_params->gnd_effect_max_hgt),
-# if defined(CONFIG_EKF2_BARO_COMPENSATION)
-	_param_ekf2_aspd_max(_params->max_correction_airspeed),
-	_param_ekf2_pcoef_xp(_params->static_pressure_coef_xp),
-	_param_ekf2_pcoef_xn(_params->static_pressure_coef_xn),
-	_param_ekf2_pcoef_yp(_params->static_pressure_coef_yp),
-	_param_ekf2_pcoef_yn(_params->static_pressure_coef_yn),
-	_param_ekf2_pcoef_z(_params->static_pressure_coef_z),
-# endif // CONFIG_EKF2_BARO_COMPENSATION
-#endif // CONFIG_EKF2_BAROMETER
+	_param_ekf2_gps_p_gate(_params->gps_pos_innov_gate),
+	_param_ekf2_gps_v_gate(_params->gps_vel_innov_gate),
 #if defined(CONFIG_EKF2_AIRSPEED)
 	_param_ekf2_asp_delay(_params->airspeed_delay_ms),
 	_param_ekf2_tas_gate(_params->tas_innov_gate),
@@ -124,10 +93,6 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_beta_noise(_params->beta_noise),
 	_param_ekf2_fuse_beta(_params->beta_fusion_enabled),
 #endif // CONFIG_EKF2_SIDESLIP
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-	_param_ekf2_mag_delay(_params->mag_delay_ms),
-	_param_ekf2_mag_e_noise(_params->mage_p_noise),
-	_param_ekf2_mag_b_noise(_params->magb_p_noise),
 	_param_ekf2_head_noise(_params->mag_heading_noise),
 	_param_ekf2_mag_noise(_params->mag_noise),
 	_param_ekf2_mag_decl(_params->mag_declination_deg),
@@ -136,26 +101,26 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_decl_type(_params->mag_declination_source),
 	_param_ekf2_mag_type(_params->mag_fusion_type),
 	_param_ekf2_mag_acclim(_params->mag_acc_gate),
-	_param_ekf2_mag_check(_params->mag_check),
-	_param_ekf2_mag_chk_str(_params->mag_check_strength_tolerance_gs),
-	_param_ekf2_mag_chk_inc(_params->mag_check_inclination_tolerance_deg),
-	_param_ekf2_synthetic_mag_z(_params->synthesize_mag_z),
-#endif // CONFIG_EKF2_MAGNETOMETER
+	_param_ekf2_mag_yawlim(_params->mag_yaw_rate_gate),
+	_param_ekf2_gps_check(_params->gps_check_mask),
+	_param_ekf2_req_eph(_params->req_hacc),
+	_param_ekf2_req_epv(_params->req_vacc),
+	_param_ekf2_req_sacc(_params->req_sacc),
+	_param_ekf2_req_nsats(_params->req_nsats),
+	_param_ekf2_req_pdop(_params->req_pdop),
+	_param_ekf2_req_hdrift(_params->req_hdrift),
+	_param_ekf2_req_vdrift(_params->req_vdrift),
 	_param_ekf2_hgt_ref(_params->height_sensor_ref),
+	_param_ekf2_baro_ctrl(_params->baro_ctrl),
+	_param_ekf2_gps_ctrl(_params->gnss_ctrl),
 	_param_ekf2_noaid_tout(_params->valid_timeout_max),
-#if defined(CONFIG_EKF2_TERRAIN) || defined(CONFIG_EKF2_OPTICAL_FLOW) || defined(CONFIG_EKF2_RANGE_FINDER)
-	_param_ekf2_min_rng(_params->rng_gnd_clearance),
-#endif // CONFIG_EKF2_TERRAIN || CONFIG_EKF2_OPTICAL_FLOW || CONFIG_EKF2_RANGE_FINDER
-#if defined(CONFIG_EKF2_TERRAIN)
-	_param_ekf2_terr_noise(_params->terrain_p_noise),
-	_param_ekf2_terr_grad(_params->terrain_gradient),
-#endif // CONFIG_EKF2_TERRAIN
 #if defined(CONFIG_EKF2_RANGE_FINDER)
 	_param_ekf2_rng_ctrl(_params->rng_ctrl),
 	_param_ekf2_rng_delay(_params->range_delay_ms),
 	_param_ekf2_rng_noise(_params->range_noise),
 	_param_ekf2_rng_sfe(_params->range_noise_scaler),
 	_param_ekf2_rng_gate(_params->range_innov_gate),
+	_param_ekf2_min_rng(_params->rng_gnd_clearance),
 	_param_ekf2_rng_pitch(_params->rng_sens_pitch),
 	_param_ekf2_rng_a_vmax(_params->max_vel_for_range_aid),
 	_param_ekf2_rng_a_hmax(_params->max_hagl_for_range_aid),
@@ -165,6 +130,9 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_rng_pos_x(_params->rng_pos_body(0)),
 	_param_ekf2_rng_pos_y(_params->rng_pos_body(1)),
 	_param_ekf2_rng_pos_z(_params->rng_pos_body(2)),
+	_param_ekf2_terr_mask(_params->terrain_fusion_mode),
+	_param_ekf2_terr_noise(_params->terrain_p_noise),
+	_param_ekf2_terr_grad(_params->terrain_gradient),
 #endif // CONFIG_EKF2_RANGE_FINDER
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
 	_param_ekf2_ev_delay(_params->ev_delay_ms),
@@ -179,6 +147,7 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_ev_pos_y(_params->ev_pos_body(1)),
 	_param_ekf2_ev_pos_z(_params->ev_pos_body(2)),
 #endif // CONFIG_EKF2_EXTERNAL_VISION
+	_param_ekf2_grav_noise(_params->gravity_noise),
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
 	_param_ekf2_of_ctrl(_params->flow_ctrl),
 	_param_ekf2_of_delay(_params->flow_delay_ms),
@@ -191,19 +160,12 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_of_pos_y(_params->flow_pos_body(1)),
 	_param_ekf2_of_pos_z(_params->flow_pos_body(2)),
 #endif // CONFIG_EKF2_OPTICAL_FLOW
-#if defined(CONFIG_EKF2_DRAG_FUSION)
-	_param_ekf2_drag_ctrl(_params->drag_ctrl),
-	_param_ekf2_drag_noise(_params->drag_noise),
-	_param_ekf2_bcoef_x(_params->bcoef_x),
-	_param_ekf2_bcoef_y(_params->bcoef_y),
-	_param_ekf2_mcoef(_params->mcoef),
-#endif // CONFIG_EKF2_DRAG_FUSION
-#if defined(CONFIG_EKF2_GRAVITY_FUSION)
-	_param_ekf2_grav_noise(_params->gravity_noise),
-#endif // CONFIG_EKF2_GRAVITY_FUSION
 	_param_ekf2_imu_pos_x(_params->imu_pos_body(0)),
 	_param_ekf2_imu_pos_y(_params->imu_pos_body(1)),
 	_param_ekf2_imu_pos_z(_params->imu_pos_body(2)),
+	_param_ekf2_gps_pos_x(_params->gps_pos_body(0)),
+	_param_ekf2_gps_pos_y(_params->gps_pos_body(1)),
+	_param_ekf2_gps_pos_z(_params->gps_pos_body(2)),
 	_param_ekf2_gbias_init(_params->switch_on_gyro_bias),
 	_param_ekf2_abias_init(_params->switch_on_accel_bias),
 	_param_ekf2_angerr_init(_params->initial_tilt_err),
@@ -211,184 +173,150 @@ EKF2::EKF2(bool multi_mode, const px4::wq_config_t &config, bool replay_mode):
 	_param_ekf2_abl_acclim(_params->acc_bias_learn_acc_lim),
 	_param_ekf2_abl_gyrlim(_params->acc_bias_learn_gyr_lim),
 	_param_ekf2_abl_tau(_params->acc_bias_learn_tc),
-	_param_ekf2_gyr_b_lim(_params->gyro_bias_lim)
+	_param_ekf2_gyr_b_lim(_params->gyro_bias_lim),
+#if defined(CONFIG_EKF2_DRAG_FUSION)
+	_param_ekf2_drag_ctrl(_params->drag_ctrl),
+	_param_ekf2_drag_noise(_params->drag_noise),
+	_param_ekf2_bcoef_x(_params->bcoef_x),
+	_param_ekf2_bcoef_y(_params->bcoef_y),
+	_param_ekf2_mcoef(_params->mcoef),
+#endif // CONFIG_EKF2_DRAG_FUSION
+#if defined(CONFIG_EKF2_BARO_COMPENSATION)
+	_param_ekf2_aspd_max(_params->max_correction_airspeed),
+	_param_ekf2_pcoef_xp(_params->static_pressure_coef_xp),
+	_param_ekf2_pcoef_xn(_params->static_pressure_coef_xn),
+	_param_ekf2_pcoef_yp(_params->static_pressure_coef_yp),
+	_param_ekf2_pcoef_yn(_params->static_pressure_coef_yn),
+	_param_ekf2_pcoef_z(_params->static_pressure_coef_z),
+#endif // CONFIG_EKF2_BARO_COMPENSATION
+	_param_ekf2_mag_check(_params->check_mag_strength),
+	_param_ekf2_synthetic_mag_z(_params->synthesize_mag_z),
+	_param_ekf2_gsf_tas_default(_params->EKFGSF_tas_default)
 {
-	AdvertiseTopics();
+	// advertise expected minimal topic set immediately to ensure logging
+	_attitude_pub.advertise();
+	_local_position_pub.advertise();
+
+	_estimator_event_flags_pub.advertise();
+	_estimator_innovation_test_ratios_pub.advertise();
+	_estimator_innovation_variances_pub.advertise();
+	_estimator_innovations_pub.advertise();
+	_estimator_sensor_bias_pub.advertise();
+	_estimator_states_pub.advertise();
+	_estimator_status_flags_pub.advertise();
+	_estimator_status_pub.advertise();
 }
 
 EKF2::~EKF2()
 {
-	perf_free(_ekf_update_perf);
+	perf_free(_ecl_ekf_update_perf);
+	perf_free(_ecl_ekf_update_full_perf);
 	perf_free(_msg_missed_imu_perf);
-}
-
-void EKF2::AdvertiseTopics()
-{
-	// advertise expected minimal topic set immediately for logging
-	_attitude_pub.advertise();
-	_local_position_pub.advertise();
-	_estimator_event_flags_pub.advertise();
-	_estimator_sensor_bias_pub.advertise();
-	_estimator_status_pub.advertise();
-	_estimator_status_flags_pub.advertise();
-
-	if (_multi_mode) {
-		// only force advertise these in multi mode to ensure consistent uORB instance numbering
-		_global_position_pub.advertise();
-		_odometry_pub.advertise();
-
-#if defined(CONFIG_EKF2_WIND)
-		_wind_pub.advertise();
-#endif // CONFIG_EKF2_WIND
-	}
-
-#if defined(CONFIG_EKF2_GNSS)
-
-	if (_param_ekf2_gps_ctrl.get()) {
-		_estimator_gps_status_pub.advertise();
-		_yaw_est_pub.advertise();
-	}
-
-#endif // CONFIG_EKF2_GNSS
-
-	// verbose logging
-	if (_param_ekf2_log_verbose.get()) {
-		_estimator_innovation_test_ratios_pub.advertise();
-		_estimator_innovation_variances_pub.advertise();
-		_estimator_innovations_pub.advertise();
-		_estimator_states_pub.advertise();
-
+	perf_free(_msg_missed_air_data_perf);
 #if defined(CONFIG_EKF2_AIRSPEED)
-
-		if (_param_ekf2_arsp_thr.get() > 0.f) {
-			_estimator_aid_src_airspeed_pub.advertise();
-		}
-
+	perf_free(_msg_missed_airspeed_perf);
 #endif // CONFIG_EKF2_AIRSPEED
-
-#if defined(CONFIG_EKF2_BAROMETER)
-
-		if (_param_ekf2_baro_ctrl.get()) {
-			_estimator_aid_src_baro_hgt_pub.advertise();
-			_estimator_baro_bias_pub.advertise();
-		}
-
-#endif // CONFIG_EKF2_BAROMETER
-
-#if defined(CONFIG_EKF2_DRAG_FUSION)
-
-		if (_param_ekf2_drag_ctrl.get()) {
-			_estimator_aid_src_drag_pub.advertise();
-		}
-
-#endif // CONFIG_EKF2_DRAG_FUSION
-
-#if defined(CONFIG_EKF2_EXTERNAL_VISION)
-
-		if (_param_ekf2_ev_ctrl.get() & static_cast<int32_t>(EvCtrl::VPOS)) {
-			_estimator_aid_src_ev_hgt_pub.advertise();
-			_estimator_ev_pos_bias_pub.advertise();
-		}
-
-		if (_param_ekf2_ev_ctrl.get() & static_cast<int32_t>(EvCtrl::HPOS)) {
-			_estimator_aid_src_ev_pos_pub.advertise();
-			_estimator_ev_pos_bias_pub.advertise();
-		}
-
-		if (_param_ekf2_ev_ctrl.get() & static_cast<int32_t>(EvCtrl::VEL)) {
-			_estimator_aid_src_ev_vel_pub.advertise();
-		}
-
-		if (_param_ekf2_ev_ctrl.get() & static_cast<int32_t>(EvCtrl::YAW)) {
-			_estimator_aid_src_ev_yaw_pub.advertise();
-		}
-
-#endif // CONFIG_EKF2_EXTERNAL_VISION
-
-#if defined(CONFIG_EKF2_GNSS)
-
-		if (_param_ekf2_gps_ctrl.get()) {
-			if (_param_ekf2_gps_ctrl.get() & static_cast<int32_t>(GnssCtrl::VPOS)) {
-				_estimator_aid_src_gnss_hgt_pub.advertise();
-				_estimator_gnss_hgt_bias_pub.advertise();
-			}
-
-			if (_param_ekf2_gps_ctrl.get() & static_cast<int32_t>(GnssCtrl::HPOS)) {
-				_estimator_aid_src_gnss_pos_pub.advertise();
-			}
-
-			if (_param_ekf2_gps_ctrl.get() & static_cast<int32_t>(GnssCtrl::VEL)) {
-				_estimator_aid_src_gnss_vel_pub.advertise();
-			}
-
-# if defined(CONFIG_EKF2_GNSS_YAW)
-
-			if (_param_ekf2_gps_ctrl.get() & static_cast<int32_t>(GnssCtrl::YAW)) {
-				_estimator_aid_src_gnss_yaw_pub.advertise();
-			}
-
-# endif // CONFIG_EKF2_GNSS_YAW
-		}
-
-#endif // CONFIG_EKF2_GNSS
-
-#if defined(CONFIG_EKF2_GRAVITY_FUSION)
-
-		if (_param_ekf2_imu_ctrl.get() & static_cast<int32_t>(ImuCtrl::GravityVector)) {
-			_estimator_aid_src_gravity_pub.advertise();
-		}
-
-#endif // CONFIG_EKF2_GRAVITY_FUSION
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-
-		if (_param_ekf2_mag_type.get() != MagFuseType::NONE) {
-			_estimator_aid_src_mag_pub.advertise();
-		}
-
-#endif // CONFIG_EKF2_MAGNETOMETER
-
-#if defined(CONFIG_EKF2_OPTICAL_FLOW)
-
-		if (_param_ekf2_of_ctrl.get()) {
-			_estimator_optical_flow_vel_pub.advertise();
-			_estimator_aid_src_optical_flow_pub.advertise();
-		}
-
-#endif // CONFIG_EKF2_OPTICAL_FLOW
-
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-
-		// RNG advertise
-		if (_param_ekf2_rng_ctrl.get()) {
-			_estimator_aid_src_rng_hgt_pub.advertise();
-		}
-
+	perf_free(_msg_missed_distance_sensor_perf);
 #endif // CONFIG_EKF2_RANGE_FINDER
-
-#if defined(CONFIG_EKF2_SIDESLIP)
-
-		if (_param_ekf2_fuse_beta.get()) {
-			_estimator_aid_src_sideslip_pub.advertise();
-		}
-
-#endif // CONFIG_EKF2_SIDESLIP
-
-	} // end verbose logging
+	perf_free(_msg_missed_gps_perf);
+#if defined(CONFIG_EKF2_AUXVEL)
+	perf_free(_msg_missed_landing_target_pose_perf);
+#endif // CONFIG_EKF2_AUXVEL
+	perf_free(_msg_missed_magnetometer_perf);
+	perf_free(_msg_missed_odometry_perf);
+#if defined(CONFIG_EKF2_OPTICAL_FLOW)
+	perf_free(_msg_missed_optical_flow_perf);
+#endif // CONFIG_EKF2_OPTICAL_FLOW
 }
 
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 bool EKF2::multi_init(int imu, int mag)
 {
-	bool changed_instance = _vehicle_imu_sub.ChangeInstance(imu);
+	// advertise all topics to ensure consistent uORB instance numbering
+	_ekf2_timestamps_pub.advertise();
+	_estimator_event_flags_pub.advertise();
+	_estimator_innovation_test_ratios_pub.advertise();
+	_estimator_innovation_variances_pub.advertise();
+	_estimator_innovations_pub.advertise();
+#if defined(CONFIG_EKF2_OPTICAL_FLOW)
+	_estimator_optical_flow_vel_pub.advertise();
+#endif // CONFIG_EKF2_OPTICAL_FLOW
+	_estimator_sensor_bias_pub.advertise();
+	_estimator_states_pub.advertise();
+	_estimator_status_flags_pub.advertise();
+	_estimator_status_pub.advertise();
+	_yaw_est_pub.advertise();
 
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-
-	if (!_magnetometer_sub.ChangeInstance(mag)) {
-		changed_instance = false;
+	// baro advertise
+	if (_param_ekf2_baro_ctrl.get()) {
+		_estimator_aid_src_baro_hgt_pub.advertise();
+		_estimator_baro_bias_pub.advertise();
 	}
 
-#endif // CONFIG_EKF2_MAGNETOMETER
+#if defined(CONFIG_EKF2_EXTERNAL_VISION)
+
+	// EV advertise
+	if (_param_ekf2_ev_ctrl.get() & static_cast<int32_t>(EvCtrl::VPOS)) {
+		_estimator_aid_src_ev_hgt_pub.advertise();
+		_estimator_ev_pos_bias_pub.advertise();
+	}
+
+	if (_param_ekf2_ev_ctrl.get() & static_cast<int32_t>(EvCtrl::HPOS)) {
+		_estimator_aid_src_ev_pos_pub.advertise();
+		_estimator_ev_pos_bias_pub.advertise();
+	}
+
+	if (_param_ekf2_ev_ctrl.get() & static_cast<int32_t>(EvCtrl::VEL)) {
+		_estimator_aid_src_ev_vel_pub.advertise();
+	}
+
+	if (_param_ekf2_ev_ctrl.get() & static_cast<int32_t>(EvCtrl::YAW)) {
+		_estimator_aid_src_ev_yaw_pub.advertise();
+	}
+
+#endif // CONFIG_EKF2_EXTERNAL_VISION
+
+	// GNSS advertise
+	if (_param_ekf2_gps_ctrl.get() & static_cast<int32_t>(GnssCtrl::VPOS)) {
+		_estimator_aid_src_gnss_hgt_pub.advertise();
+		_estimator_gnss_hgt_bias_pub.advertise();
+	}
+
+	if (_param_ekf2_gps_ctrl.get() & static_cast<int32_t>(GnssCtrl::HPOS)) {
+		_estimator_aid_src_gnss_pos_pub.advertise();
+		_estimator_gps_status_pub.advertise();
+	}
+
+	if (_param_ekf2_gps_ctrl.get() & static_cast<int32_t>(GnssCtrl::VEL)) {
+		_estimator_aid_src_gnss_vel_pub.advertise();
+	}
+
+#if defined(CONFIG_EKF2_GNSS_YAW)
+
+	if (_param_ekf2_gps_ctrl.get() & static_cast<int32_t>(GnssCtrl::YAW)) {
+		_estimator_aid_src_gnss_yaw_pub.advertise();
+	}
+
+#endif // CONFIG_EKF2_GNSS_YAW
+
+#if defined(CONFIG_EKF2_RANGE_FINDER)
+
+	// RNG advertise
+	if (_param_ekf2_rng_ctrl.get()) {
+		_estimator_aid_src_rng_hgt_pub.advertise();
+		_estimator_rng_hgt_bias_pub.advertise();
+	}
+
+#endif // CONFIG_EKF2_RANGE_FINDER
+
+	_attitude_pub.advertise();
+	_local_position_pub.advertise();
+	_global_position_pub.advertise();
+	_odometry_pub.advertise();
+	_wind_pub.advertise();
+
+	bool changed_instance = _vehicle_imu_sub.ChangeInstance(imu) && _magnetometer_sub.ChangeInstance(mag);
 
 	const int status_instance = _estimator_states_pub.get_instance();
 
@@ -410,20 +338,35 @@ bool EKF2::multi_init(int imu, int mag)
 }
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
-int EKF2::print_status(bool verbose)
+int EKF2::print_status()
 {
 	PX4_INFO_RAW("ekf2:%d EKF dt: %.4fs, attitude: %d, local position: %d, global position: %d\n",
 		     _instance, (double)_ekf.get_dt_ekf_avg(), _ekf.attitude_valid(),
 		     _ekf.local_position_is_valid(), _ekf.global_position_is_valid());
 
-	perf_print_counter(_ekf_update_perf);
+	perf_print_counter(_ecl_ekf_update_perf);
+	perf_print_counter(_ecl_ekf_update_full_perf);
 	perf_print_counter(_msg_missed_imu_perf);
+	perf_print_counter(_msg_missed_air_data_perf);
+#if defined(CONFIG_EKF2_AIRSPEED)
+	perf_print_counter(_msg_missed_airspeed_perf);
+#endif // CONFIG_EKF2_AIRSPEED
+#if defined(CONFIG_EKF2_RANGE_FINDER)
+	perf_print_counter(_msg_missed_distance_sensor_perf);
+#endif // CONFIG_EKF2_RANGE_FINDER
+	perf_print_counter(_msg_missed_gps_perf);
+#if defined(CONFIG_EKF2_AUXVEL)
+	perf_print_counter(_msg_missed_landing_target_pose_perf);
+#endif // CONFIG_EKF2_AUXVEL
+	perf_print_counter(_msg_missed_magnetometer_perf);
+	perf_print_counter(_msg_missed_odometry_perf);
+#if defined(CONFIG_EKF2_OPTICAL_FLOW)
+	perf_print_counter(_msg_missed_optical_flow_perf);
+#endif // CONFIG_EKF2_OPTICAL_FLOW
 
-	if (verbose) {
-#if defined(CONFIG_EKF2_VERBOSE_STATUS)
-		_ekf.print_status();
-#endif // CONFIG_EKF2_VERBOSE_STATUS
-	}
+#if defined(DEBUG_BUILD)
+	_ekf.print_status();
+#endif // DEBUG_BUILD
 
 	return 0;
 }
@@ -448,12 +391,7 @@ void EKF2::Run()
 
 		VerifyParams();
 
-		// force advertise topics immediately for logging (EKF2_LOG_VERBOSE, per aid source control)
-		AdvertiseTopics();
-
-#if defined(CONFIG_EKF2_GNSS)
 		_ekf.set_min_required_gps_health_time(_param_ekf2_req_gps_h.get() * 1_s);
-#endif // CONFIG_EKF2_GNSS
 
 		const matrix::Vector3f imu_pos_body(_param_ekf2_imu_pos_x.get(),
 						    _param_ekf2_imu_pos_y.get(),
@@ -472,7 +410,37 @@ void EKF2::Run()
 
 #endif // CONFIG_EKF2_AIRSPEED
 
-		_ekf.updateParameters();
+		// if using baro ensure sensor interval minimum is sufficient to accommodate system averaged baro output
+		if (_params->baro_ctrl == 1) {
+			float sens_baro_rate = 0.f;
+
+			if (param_get(param_find("SENS_BARO_RATE"), &sens_baro_rate) == PX4_OK) {
+				if (sens_baro_rate > 0) {
+					float interval_ms = roundf(1000.f / sens_baro_rate);
+
+					if (PX4_ISFINITE(interval_ms) && (interval_ms > _params->sensor_interval_max_ms)) {
+						PX4_DEBUG("updating sensor_interval_max_ms %.3f -> %.3f", (double)_params->sensor_interval_max_ms, (double)interval_ms);
+						_params->sensor_interval_max_ms = interval_ms;
+					}
+				}
+			}
+		}
+
+		// if using mag ensure sensor interval minimum is sufficient to accommodate system averaged mag output
+		if (_params->mag_fusion_type != MagFuseType::NONE) {
+			float sens_mag_rate = 0.f;
+
+			if (param_get(param_find("SENS_MAG_RATE"), &sens_mag_rate) == PX4_OK) {
+				if (sens_mag_rate > 0) {
+					float interval_ms = roundf(1000.f / sens_mag_rate);
+
+					if (PX4_ISFINITE(interval_ms) && (interval_ms > _params->sensor_interval_max_ms)) {
+						PX4_DEBUG("updating sensor_interval_max_ms %.3f -> %.3f", (double)_params->sensor_interval_max_ms, (double)interval_ms);
+						_params->sensor_interval_max_ms = interval_ms;
+					}
+				}
+			}
+		}
 	}
 
 	if (!_callback_registered) {
@@ -497,12 +465,6 @@ void EKF2::Run()
 		vehicle_command_s vehicle_command;
 
 		if (_vehicle_command_sub.update(&vehicle_command)) {
-
-			vehicle_command_ack_s command_ack{};
-			command_ack.command = vehicle_command.command;
-			command_ack.target_system = vehicle_command.source_system;
-			command_ack.target_component = vehicle_command.source_component;
-
 			if (vehicle_command.command == vehicle_command_s::VEHICLE_CMD_SET_GPS_GLOBAL_ORIGIN) {
 				double latitude = vehicle_command.param5;
 				double longitude = vehicle_command.param6;
@@ -515,51 +477,10 @@ void EKF2::Run()
 					PX4_INFO("%d - New NED origin (LLA): %3.10f, %3.10f, %4.3f\n",
 						 _instance, latitude, longitude, static_cast<double>(altitude));
 
-					command_ack.result = vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED;
-
 				} else {
 					PX4_ERR("%d - Failed to set new NED origin (LLA): %3.10f, %3.10f, %4.3f\n",
 						_instance, latitude, longitude, static_cast<double>(altitude));
-
-					command_ack.result = vehicle_command_ack_s::VEHICLE_CMD_RESULT_FAILED;
 				}
-
-				command_ack.timestamp = hrt_absolute_time();
-				_vehicle_command_ack_pub.publish(command_ack);
-
-			} else if (vehicle_command.command == vehicle_command_s::VEHICLE_CMD_EXTERNAL_POSITION_ESTIMATE) {
-
-				if ((_ekf.control_status_flags().wind_dead_reckoning || _ekf.control_status_flags().inertial_dead_reckoning
-				     || (!_ekf.control_status_flags().in_air && !_ekf.control_status_flags().gps)) && PX4_ISFINITE(vehicle_command.param2)
-				    && PX4_ISFINITE(vehicle_command.param5) && PX4_ISFINITE(vehicle_command.param6)
-				   ) {
-
-					const float measurement_delay_seconds = math::constrain(vehicle_command.param2, 0.0f,
-										kMaxDelaySecondsExternalPosMeasurement);
-					const uint64_t timestamp_observation = vehicle_command.timestamp - measurement_delay_seconds * 1_s;
-
-					float accuracy = kDefaultExternalPosAccuracy;
-
-					if (PX4_ISFINITE(vehicle_command.param3) && vehicle_command.param3 > FLT_EPSILON) {
-						accuracy = vehicle_command.param3;
-					}
-
-					// TODO add check for lat and long validity
-					if (_ekf.resetGlobalPosToExternalObservation(vehicle_command.param5, vehicle_command.param6,
-							accuracy, timestamp_observation)
-					   ) {
-						command_ack.result = vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED;
-
-					} else {
-						command_ack.result = vehicle_command_ack_s::VEHICLE_CMD_RESULT_FAILED;
-					}
-
-				} else {
-					command_ack.result = vehicle_command_ack_s::VEHICLE_CMD_RESULT_TEMPORARILY_REJECTED; // TODO: expand
-				}
-
-				command_ack.timestamp = hrt_absolute_time();
-				_vehicle_command_ack_pub.publish(command_ack);
 			}
 		}
 	}
@@ -740,21 +661,15 @@ void EKF2::Run()
 #if defined(CONFIG_EKF2_AUXVEL)
 		UpdateAuxVelSample(ekf2_timestamps);
 #endif // CONFIG_EKF2_AUXVEL
-#if defined(CONFIG_EKF2_BAROMETER)
 		UpdateBaroSample(ekf2_timestamps);
-#endif // CONFIG_EKF2_BAROMETER
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
 		UpdateExtVisionSample(ekf2_timestamps);
 #endif // CONFIG_EKF2_EXTERNAL_VISION
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
 		UpdateFlowSample(ekf2_timestamps);
 #endif // CONFIG_EKF2_OPTICAL_FLOW
-#if defined(CONFIG_EKF2_GNSS)
 		UpdateGpsSample(ekf2_timestamps);
-#endif // CONFIG_EKF2_GNSS
-#if defined(CONFIG_EKF2_MAGNETOMETER)
 		UpdateMagSample(ekf2_timestamps);
-#endif // CONFIG_EKF2_MAGNETOMETER
 #if defined(CONFIG_EKF2_RANGE_FINDER)
 		UpdateRangeSample(ekf2_timestamps);
 #endif // CONFIG_EKF2_RANGE_FINDER
@@ -764,57 +679,45 @@ void EKF2::Run()
 		const hrt_abstime ekf_update_start = hrt_absolute_time();
 
 		if (_ekf.update()) {
-			perf_set_elapsed(_ekf_update_perf, hrt_elapsed_time(&ekf_update_start));
+			perf_set_elapsed(_ecl_ekf_update_full_perf, hrt_elapsed_time(&ekf_update_start));
 
 			PublishLocalPosition(now);
 			PublishOdometry(now, imu_sample_new);
 			PublishGlobalPosition(now);
-			PublishSensorBias(now);
-
-#if defined(CONFIG_EKF2_WIND)
 			PublishWindEstimate(now);
-#endif // CONFIG_EKF2_WIND
 
 			// publish status/logging messages
-			PublishEventFlags(now);
-			PublishStatus(now);
-			PublishStatusFlags(now);
-
-			if (_param_ekf2_log_verbose.get()) {
-				PublishAidSourceStatus(now);
-				PublishInnovations(now);
-				PublishInnovationTestRatios(now);
-				PublishInnovationVariances(now);
-				PublishStates(now);
-
-#if defined(CONFIG_EKF2_BAROMETER)
-				PublishBaroBias(now);
-#endif // CONFIG_EKF2_BAROMETER
-
+			PublishBaroBias(now);
+			PublishGnssHgtBias(now);
+#if defined(CONFIG_EKF2_RANGE_FINDER)
+			PublishRngHgtBias(now);
+#endif // CONFIG_EKF2_RANGE_FINDER
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
-				PublishEvPosBias(now);
+			PublishEvPosBias(now);
 #endif // CONFIG_EKF2_EXTERNAL_VISION
-
-#if defined(CONFIG_EKF2_GNSS)
-				PublishGnssHgtBias(now);
-#endif // CONFIG_EKF2_GNSS
-
-			}
-
-#if defined(CONFIG_EKF2_GNSS)
+			PublishEventFlags(now);
 			PublishGpsStatus(now);
-			PublishYawEstimatorStatus(now);
-#endif // CONFIG_EKF2_GNSS
-
+			PublishInnovations(now);
+			PublishInnovationTestRatios(now);
+			PublishInnovationVariances(now);
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
 			PublishOpticalFlowVel(now);
 #endif // CONFIG_EKF2_OPTICAL_FLOW
+			PublishStates(now);
+			PublishStatus(now);
+			PublishStatusFlags(now);
+			PublishYawEstimatorStatus(now);
 
 			UpdateAccelCalibration(now);
 			UpdateGyroCalibration(now);
-#if defined(CONFIG_EKF2_MAGNETOMETER)
 			UpdateMagCalibration(now);
-#endif // CONFIG_EKF2_MAGNETOMETER
+			PublishSensorBias(now);
+
+			PublishAidSourceStatus(now);
+
+		} else {
+			// ekf no update
+			perf_set_elapsed(_ecl_ekf_update_perf, hrt_elapsed_time(&ekf_update_start));
 		}
 
 		// publish ekf2_timestamps
@@ -827,103 +730,184 @@ void EKF2::Run()
 
 void EKF2::VerifyParams()
 {
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-
-	// EKF2_MAG_TYPE obsolete options
-	if ((_param_ekf2_mag_type.get() != MagFuseType::AUTO)
-	    && (_param_ekf2_mag_type.get() != MagFuseType::HEADING)
-	    && (_param_ekf2_mag_type.get() != MagFuseType::NONE)
-	    && (_param_ekf2_mag_type.get() != MagFuseType::INIT)
-	   ) {
-
-		mavlink_log_critical(&_mavlink_log_pub, "EKF2_MAG_TYPE invalid, resetting to default");
+	if ((_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_GPS)
+	    || (_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_GPS_YAW)) {
+		_param_ekf2_aid_mask.set(_param_ekf2_aid_mask.get() & ~(SensorFusionMask::DEPRECATED_USE_GPS |
+					 SensorFusionMask::DEPRECATED_USE_GPS_YAW));
+		_param_ekf2_aid_mask.commit();
+		mavlink_log_critical(&_mavlink_log_pub, "Use EKF2_GPS_CTRL instead\n");
 		/* EVENT
-		 * @description <param>EKF2_MAG_TYPE</param> is set to {1:.0}.
+		 * @description <param>EKF2_AID_MASK</param> is set to {1:.0}.
 		 */
-		events::send<float>(events::ID("ekf2_mag_type_invalid"), events::Log::Warning,
-				    "EKF2_MAG_TYPE invalid, resetting to default", _param_ekf2_mag_type.get());
-
-		_param_ekf2_mag_type.set(0);
-		_param_ekf2_mag_type.commit();
+		events::send<float>(events::ID("ekf2_aid_mask_gps"), events::Log::Warning,
+				    "Use EKF2_GPS_CTRL instead", _param_ekf2_aid_mask.get());
 	}
 
-#endif // CONFIG_EKF2_MAGNETOMETER
-
-	float delay_max = _param_ekf2_delay_max.get();
-
-#if defined(CONFIG_EKF2_AUXVEL)
-
-	if (_param_ekf2_avel_delay.get() > delay_max) {
-		delay_max = _param_ekf2_avel_delay.get();
+	if ((_param_ekf2_gps_ctrl.get() & GnssCtrl::VPOS) && !(_param_ekf2_gps_ctrl.get() & GnssCtrl::HPOS)) {
+		_param_ekf2_gps_ctrl.set(_param_ekf2_gps_ctrl.get() & ~GnssCtrl::VPOS);
+		_param_ekf2_gps_ctrl.commit();
+		mavlink_log_critical(&_mavlink_log_pub, "GPS lon/lat is required for altitude fusion\n");
+		/* EVENT
+		 * @description <param>EKF2_GPS_CTRL</param> is set to {1:.0}.
+		 */
+		events::send<float>(events::ID("ekf2_gps_ctrl_alt"), events::Log::Warning,
+				    "GPS lon/lat is required for altitude fusion", _param_ekf2_gps_ctrl.get());
 	}
 
-#endif // CONFIG_EKF2_AUXVEL
-
-#if defined(CONFIG_EKF2_BAROMETER)
-
-	if (_param_ekf2_baro_delay.get() > delay_max) {
-		delay_max = _param_ekf2_baro_delay.get();
+	if ((_param_ekf2_hgt_ref.get() == HeightSensor::BARO) && (_param_ekf2_baro_ctrl.get() == 0)) {
+		_param_ekf2_baro_ctrl.set(1);
+		_param_ekf2_baro_ctrl.commit();
+		mavlink_log_critical(&_mavlink_log_pub, "Baro enabled by EKF2_HGT_REF\n");
+		/* EVENT
+		 * @description <param>EKF2_BARO_CTRL</param> is set to {1:.0}.
+		 */
+		events::send<float>(events::ID("ekf2_hgt_ref_baro"), events::Log::Warning,
+				    "Baro enabled by EKF2_HGT_REF", _param_ekf2_baro_ctrl.get());
 	}
-
-#endif // CONFIG_EKF2_BAROMETER
-
-#if defined(CONFIG_EKF2_AIRSPEED)
-
-	if (_param_ekf2_asp_delay.get() > delay_max) {
-		delay_max = _param_ekf2_asp_delay.get();
-	}
-
-#endif // CONFIG_EKF2_AIRSPEED
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-
-	if (_param_ekf2_mag_delay.get() > delay_max) {
-		delay_max = _param_ekf2_mag_delay.get();
-	}
-
-#endif // CONFIG_EKF2_MAGNETOMETER
 
 #if defined(CONFIG_EKF2_RANGE_FINDER)
 
-	if (_param_ekf2_rng_delay.get() > delay_max) {
-		delay_max = _param_ekf2_rng_delay.get();
+	if ((_param_ekf2_hgt_ref.get() == HeightSensor::RANGE) && (_param_ekf2_rng_ctrl.get() == RngCtrl::DISABLED)) {
+		_param_ekf2_rng_ctrl.set(1);
+		_param_ekf2_rng_ctrl.commit();
+		mavlink_log_critical(&_mavlink_log_pub, "Range enabled by EKF2_HGT_REF\n");
+		/* EVENT
+		 * @description <param>EKF2_RNG_CTRL</param> is set to {1:.0}.
+		 */
+		events::send<float>(events::ID("ekf2_hgt_ref_rng"), events::Log::Warning,
+				    "Range enabled by EKF2_HGT_REF", _param_ekf2_rng_ctrl.get());
 	}
 
 #endif // CONFIG_EKF2_RANGE_FINDER
 
-#if defined(CONFIG_EKF2_GNSS)
-
-	if (_param_ekf2_gps_delay.get() > delay_max) {
-		delay_max = _param_ekf2_gps_delay.get();
+	if ((_param_ekf2_hgt_ref.get() == HeightSensor::GNSS) && !(_param_ekf2_gps_ctrl.get() & GnssCtrl::VPOS)) {
+		_param_ekf2_gps_ctrl.set(_param_ekf2_gps_ctrl.get() | (GnssCtrl::VPOS | GnssCtrl::HPOS | GnssCtrl::VEL));
+		_param_ekf2_gps_ctrl.commit();
+		mavlink_log_critical(&_mavlink_log_pub, "GPS enabled by EKF2_HGT_REF\n");
+		/* EVENT
+		 * @description <param>EKF2_GPS_CTRL</param> is set to {1:.0}.
+		 */
+		events::send<float>(events::ID("ekf2_hgt_ref_gps"), events::Log::Warning,
+				    "GPS enabled by EKF2_HGT_REF", _param_ekf2_gps_ctrl.get());
 	}
-
-#endif // CONFIG_EKF2_GNSS
-
-#if defined(CONFIG_EKF2_OPTICAL_FLOW)
-
-	if (_param_ekf2_of_delay.get() > delay_max) {
-		delay_max = _param_ekf2_of_delay.get();
-	}
-
-#endif // CONFIG_EKF2_OPTICAL_FLOW
 
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
 
-	if (_param_ekf2_ev_delay.get() > delay_max) {
-		delay_max = _param_ekf2_ev_delay.get();
+	if ((_param_ekf2_hgt_ref.get() == HeightSensor::EV)
+	    && !(_param_ekf2_ev_ctrl.get() & static_cast<int32_t>(EvCtrl::VPOS))) {
+		_param_ekf2_ev_ctrl.set(_param_ekf2_ev_ctrl.get() | static_cast<int32_t>(EvCtrl::VPOS));
+		_param_ekf2_ev_ctrl.commit();
+		mavlink_log_critical(&_mavlink_log_pub, "EV vertical position enabled by EKF2_HGT_REF\n");
+		/* EVENT
+		 * @description <param>EKF2_EV_CTRL</param> is set to {1:.0}.
+		 */
+		events::send<float>(events::ID("ekf2_hgt_ref_ev"), events::Log::Warning,
+				    "EV vertical position enabled by EKF2_HGT_REF", _param_ekf2_ev_ctrl.get());
+	}
+
+	// EV EKF2_AID_MASK -> EKF2_EV_CTRL
+	if ((_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_EXT_VIS_VEL)
+	    || (_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_EXT_VIS_POS)
+	    || (_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_EXT_VIS_YAW)
+	   ) {
+
+		// EKF2_EV_CTRL set VEL bit
+		if ((_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_EXT_VIS_VEL)) {
+			_param_ekf2_ev_ctrl.set(_param_ekf2_ev_ctrl.get() | static_cast<int32_t>(EvCtrl::VEL));
+		}
+
+		// EKF2_EV_CTRL set HPOS/VPOS bits
+		if ((_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_EXT_VIS_POS)) {
+			_param_ekf2_ev_ctrl.set(_param_ekf2_ev_ctrl.get()
+						| static_cast<int32_t>(EvCtrl::HPOS) | static_cast<int32_t>(EvCtrl::VPOS));
+		}
+
+		// EKF2_EV_CTRL set YAW bit
+		if ((_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_EXT_VIS_YAW)) {
+			_param_ekf2_ev_ctrl.set(_param_ekf2_ev_ctrl.get() | static_cast<int32_t>(EvCtrl::YAW));
+		}
+
+		_param_ekf2_aid_mask.set(_param_ekf2_aid_mask.get() & ~(SensorFusionMask::DEPRECATED_USE_EXT_VIS_VEL));
+		_param_ekf2_aid_mask.set(_param_ekf2_aid_mask.get() & ~(SensorFusionMask::DEPRECATED_USE_EXT_VIS_POS));
+		_param_ekf2_aid_mask.set(_param_ekf2_aid_mask.get() & ~(SensorFusionMask::DEPRECATED_USE_EXT_VIS_YAW));
+
+		_param_ekf2_ev_ctrl.commit();
+		_param_ekf2_aid_mask.commit();
+
+		mavlink_log_critical(&_mavlink_log_pub, "EKF2 EV use EKF2_EV_CTRL instead of EKF2_AID_MASK\n");
+		/* EVENT
+		 * @description <param>EKF2_AID_MASK</param> is set to {1:.0}.
+		 */
+		events::send<float>(events::ID("ekf2_aid_mask_ev"), events::Log::Warning,
+				    "Use EKF2_EV_CTRL instead", _param_ekf2_aid_mask.get());
 	}
 
 #endif // CONFIG_EKF2_EXTERNAL_VISION
 
-	if (delay_max > _param_ekf2_delay_max.get()) {
+	// IMU EKF2_AID_MASK -> EKF2_IMU_CTRL (2023-01-31)
+	if (_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_INHIBIT_ACC_BIAS) {
+
+		// EKF2_IMU_CTRL set disable accel bias bit
+		_param_ekf2_imu_ctrl.set(_param_ekf2_imu_ctrl.get() & ~(static_cast<int32_t>(ImuCtrl::AccelBias)));
+
+		// EKF2_AID_MASK clear inhibit accel bias bit
+		_param_ekf2_aid_mask.set(_param_ekf2_aid_mask.get() & ~(SensorFusionMask::DEPRECATED_INHIBIT_ACC_BIAS));
+
+		_param_ekf2_imu_ctrl.commit();
+		_param_ekf2_aid_mask.commit();
+
+		mavlink_log_critical(&_mavlink_log_pub, "EKF2 IMU accel bias inhibit use EKF2_IMU_CTRL instead of EKF2_AID_MASK\n");
 		/* EVENT
-		 * @description EKF2_DELAY_MAX({1}ms) is too small compared to the maximum sensor delay ({2})
+		 * @description <param>EKF2_AID_MASK</param> is set to {1:.0}.
 		 */
-		events::send<float, float>(events::ID("nf_delay_max_too_small"), events::Log::Warning,
-					   "EKF2_DELAY_MAX increased to {2}ms, please reboot", _param_ekf2_delay_max.get(),
-					   delay_max);
-		_param_ekf2_delay_max.commit_no_notification(delay_max);
+		events::send<float>(events::ID("ekf2_aid_mask_imu"), events::Log::Warning,
+				    "Use EKF2_IMU_CTRL instead", _param_ekf2_aid_mask.get());
 	}
+
+#if defined(CONFIG_EKF2_DRAG_FUSION)
+
+	if (_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_DRAG) {
+		// EKF2_DRAG_CTRL enable drag fusion
+		_param_ekf2_drag_ctrl.set(1);
+
+		// EKF2_AID_MASK clear deprecated bits
+		_param_ekf2_aid_mask.set(_param_ekf2_aid_mask.get() & ~(SensorFusionMask::DEPRECATED_USE_DRAG));
+
+		_param_ekf2_drag_ctrl.commit();
+		_param_ekf2_aid_mask.commit();
+
+		mavlink_log_critical(&_mavlink_log_pub, "EKF2 drag fusion use EKF2_DRAG_CTRL instead of EKF2_AID_MASK\n");
+		/* EVENT
+		 * @description <param>EKF2_AID_MASK</param> is set to {1:.0}.
+		 */
+		events::send<float>(events::ID("ekf2_aid_mask_drag"), events::Log::Warning,
+				    "Use EKF2_DRAG_CTRL instead", _param_ekf2_aid_mask.get());
+	}
+
+#endif // CONFIG_EKF2_DRAG_FUSION
+
+#if defined(CONFIG_EKF2_OPTICAL_FLOW)
+
+	// IMU EKF2_AID_MASK -> EKF2_OF_CTRL (2023-04-26)
+	if (_param_ekf2_aid_mask.get() & SensorFusionMask::DEPRECATED_USE_OPT_FLOW) {
+		// EKF2_OF_CTRL enable flow fusion
+		_param_ekf2_of_ctrl.set(1);
+
+		// EKF2_AID_MASK clear deprecated bit
+		_param_ekf2_aid_mask.set(_param_ekf2_aid_mask.get() & ~(SensorFusionMask::DEPRECATED_USE_OPT_FLOW));
+
+		_param_ekf2_of_ctrl.commit();
+		_param_ekf2_aid_mask.commit();
+
+		mavlink_log_critical(&_mavlink_log_pub, "EKF2 optical flow use EKF2_OF_CTRL instead of EKF2_AID_MASK\n");
+		/* EVENT
+		 * @description <param>EKF2_AID_MASK</param> is set to {1:.0}.
+		 */
+		events::send<float>(events::ID("ekf2_aid_mask_opt_flow"), events::Log::Warning,
+				    "Use EKF2_OF_CTRL instead", _param_ekf2_aid_mask.get());
+	}
+
+#endif // CONFIG_EKF2_OPTICAL_FLOW
 }
 
 void EKF2::PublishAidSourceStatus(const hrt_abstime &timestamp)
@@ -936,15 +920,8 @@ void EKF2::PublishAidSourceStatus(const hrt_abstime &timestamp)
 	// sideslip
 	PublishAidSourceStatus(_ekf.aid_src_sideslip(), _status_sideslip_pub_last, _estimator_aid_src_sideslip_pub);
 #endif // CONFIG_EKF2_SIDESLIP
-#if defined(CONFIG_EKF2_BAROMETER)
 	// baro height
 	PublishAidSourceStatus(_ekf.aid_src_baro_hgt(), _status_baro_hgt_pub_last, _estimator_aid_src_baro_hgt_pub);
-#endif // CONFIG_EKF2_BAROMETER
-
-#if defined(CONFIG_EKF2_DRAG_FUSION)
-	// drag
-	PublishAidSourceStatus(_ekf.aid_src_drag(), _status_drag_pub_last, _estimator_aid_src_drag_pub);
-#endif // CONFIG_EKF2_DRAG_FUSION
 
 #if defined(CONFIG_EKF2_RANGE_FINDER)
 	// RNG height
@@ -963,25 +940,22 @@ void EKF2::PublishAidSourceStatus(const hrt_abstime &timestamp)
 	PublishAidSourceStatus(_ekf.aid_src_ev_yaw(), _status_ev_yaw_pub_last, _estimator_aid_src_ev_yaw_pub);
 #endif // CONFIG_EKF2_EXTERNAL_VISION
 
-#if defined(CONFIG_EKF2_GNSS)
 	// GNSS hgt/pos/vel/yaw
 	PublishAidSourceStatus(_ekf.aid_src_gnss_hgt(), _status_gnss_hgt_pub_last, _estimator_aid_src_gnss_hgt_pub);
 	PublishAidSourceStatus(_ekf.aid_src_gnss_pos(), _status_gnss_pos_pub_last, _estimator_aid_src_gnss_pos_pub);
 	PublishAidSourceStatus(_ekf.aid_src_gnss_vel(), _status_gnss_vel_pub_last, _estimator_aid_src_gnss_vel_pub);
-# if defined(CONFIG_EKF2_GNSS_YAW)
+#if defined(CONFIG_EKF2_GNSS_YAW)
 	PublishAidSourceStatus(_ekf.aid_src_gnss_yaw(), _status_gnss_yaw_pub_last, _estimator_aid_src_gnss_yaw_pub);
-# endif // CONFIG_EKF2_GNSS_YAW
-#endif // CONFIG_EKF2_GNSS
+#endif // CONFIG_EKF2_GNSS_YAW
 
-#if defined(CONFIG_EKF2_MAGNETOMETER)
+	// mag heading
+	PublishAidSourceStatus(_ekf.aid_src_mag_heading(), _status_mag_heading_pub_last, _estimator_aid_src_mag_heading_pub);
+
 	// mag 3d
 	PublishAidSourceStatus(_ekf.aid_src_mag(), _status_mag_pub_last, _estimator_aid_src_mag_pub);
-#endif // CONFIG_EKF2_MAGNETOMETER
 
-#if defined(CONFIG_EKF2_GRAVITY_FUSION)
 	// gravity
 	PublishAidSourceStatus(_ekf.aid_src_gravity(), _status_gravity_pub_last, _estimator_aid_src_gravity_pub);
-#endif // CONFIG_EKF2_GRAVITY_FUSION
 
 #if defined(CONFIG_EKF2_AUXVEL)
 	// aux velocity
@@ -991,6 +965,8 @@ void EKF2::PublishAidSourceStatus(const hrt_abstime &timestamp)
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
 	// optical flow
 	PublishAidSourceStatus(_ekf.aid_src_optical_flow(), _status_optical_flow_pub_last, _estimator_aid_src_optical_flow_pub);
+	PublishAidSourceStatus(_ekf.aid_src_terrain_optical_flow(), _status_terrain_optical_flow_pub_last,
+			       _estimator_aid_src_terrain_optical_flow_pub);
 #endif // CONFIG_EKF2_OPTICAL_FLOW
 }
 
@@ -1014,7 +990,6 @@ void EKF2::PublishAttitude(const hrt_abstime &timestamp)
 	}
 }
 
-#if defined(CONFIG_EKF2_BAROMETER)
 void EKF2::PublishBaroBias(const hrt_abstime &timestamp)
 {
 	if (_ekf.aid_src_baro_hgt().timestamp_sample != 0) {
@@ -1028,9 +1003,7 @@ void EKF2::PublishBaroBias(const hrt_abstime &timestamp)
 		}
 	}
 }
-#endif // CONFIG_EKF2_BAROMETER
 
-#if defined(CONFIG_EKF2_GNSS)
 void EKF2::PublishGnssHgtBias(const hrt_abstime &timestamp)
 {
 	if (_ekf.get_gps_sample_delayed().time_us != 0) {
@@ -1043,7 +1016,21 @@ void EKF2::PublishGnssHgtBias(const hrt_abstime &timestamp)
 		}
 	}
 }
-#endif // CONFIG_EKF2_GNSS
+
+#if defined(CONFIG_EKF2_RANGE_FINDER)
+void EKF2::PublishRngHgtBias(const hrt_abstime &timestamp)
+{
+	if (_ekf.get_rng_sample_delayed().time_us != 0) {
+		const BiasEstimator::status &status = _ekf.getRngHgtBiasEstimatorStatus();
+
+		if (fabsf(status.bias - _last_rng_hgt_bias_published) > 0.001f) {
+			_estimator_rng_hgt_bias_pub.publish(fillEstimatorBiasMsg(status, _ekf.get_rng_sample_delayed().time_us, timestamp));
+
+			_last_rng_hgt_bias_published = status.bias;
+		}
+	}
+}
+#endif // CONFIG_EKF2_RANGE_FINDER
 
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
 void EKF2::PublishEvPosBias(const hrt_abstime &timestamp)
@@ -1071,7 +1058,7 @@ void EKF2::PublishEvPosBias(const hrt_abstime &timestamp)
 
 		if ((bias_vec - _last_ev_bias_published).longerThan(0.01f)) {
 			bias.timestamp_sample = _ekf.aid_src_ev_hgt().timestamp_sample;
-			bias.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
+			bias.timestamp = hrt_absolute_time();
 			_estimator_ev_pos_bias_pub.publish(bias);
 
 			_last_ev_bias_published = Vector3f(bias.bias);
@@ -1107,7 +1094,16 @@ void EKF2::PublishEventFlags(const hrt_abstime &timestamp)
 		_filter_information_event_changes++;
 	}
 
-	if (information_event_updated) {
+	// warning events
+	uint32_t warning_events = _ekf.warning_event_status().value;
+	bool warning_event_updated = false;
+
+	if (warning_events != 0) {
+		warning_event_updated = true;
+		_filter_warning_event_changes++;
+	}
+
+	if (information_event_updated || warning_event_updated) {
 		estimator_event_flags_s event_flags{};
 		event_flags.timestamp_sample = _ekf.time_delayed_us();
 
@@ -1130,12 +1126,27 @@ void EKF2::PublishEventFlags(const hrt_abstime &timestamp)
 		event_flags.reset_hgt_to_rng                    = _ekf.information_event_flags().reset_hgt_to_rng;
 		event_flags.reset_hgt_to_ev                     = _ekf.information_event_flags().reset_hgt_to_ev;
 
+		event_flags.warning_event_changes               = _filter_warning_event_changes;
+		event_flags.gps_quality_poor                    = _ekf.warning_event_flags().gps_quality_poor;
+		event_flags.gps_fusion_timout                   = _ekf.warning_event_flags().gps_fusion_timout;
+		event_flags.gps_data_stopped                    = _ekf.warning_event_flags().gps_data_stopped;
+		event_flags.gps_data_stopped_using_alternate    = _ekf.warning_event_flags().gps_data_stopped_using_alternate;
+		event_flags.height_sensor_timeout               = _ekf.warning_event_flags().height_sensor_timeout;
+		event_flags.stopping_navigation                 = _ekf.warning_event_flags().stopping_mag_use;
+		event_flags.invalid_accel_bias_cov_reset        = _ekf.warning_event_flags().invalid_accel_bias_cov_reset;
+		event_flags.bad_yaw_using_gps_course            = _ekf.warning_event_flags().bad_yaw_using_gps_course;
+		event_flags.stopping_mag_use                    = _ekf.warning_event_flags().stopping_mag_use;
+		event_flags.vision_data_stopped                 = _ekf.warning_event_flags().vision_data_stopped;
+		event_flags.emergency_yaw_reset_mag_stopped     = _ekf.warning_event_flags().emergency_yaw_reset_mag_stopped;
+		event_flags.emergency_yaw_reset_gps_yaw_stopped = _ekf.warning_event_flags().emergency_yaw_reset_gps_yaw_stopped;
+
 		event_flags.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 		_estimator_event_flags_pub.update(event_flags);
 
 		_last_event_flags_publish = event_flags.timestamp;
 
 		_ekf.clear_information_events();
+		_ekf.clear_warning_events();
 
 	} else if ((_last_event_flags_publish != 0) && (timestamp >= _last_event_flags_publish + 1_s)) {
 		// continue publishing periodically
@@ -1158,11 +1169,7 @@ void EKF2::PublishGlobalPosition(const hrt_abstime &timestamp)
 		_ekf.global_origin().reproject(position(0), position(1), global_pos.lat, global_pos.lon);
 
 		global_pos.alt = -position(2) + _ekf.getEkfGlobalOriginAltitude(); // Altitude AMSL in meters
-#if defined(CONFIG_EKF2_GNSS)
 		global_pos.alt_ellipsoid = filter_altitude_ellipsoid(global_pos.alt);
-#else
-		global_pos.alt_ellipsoid = global_pos.alt;
-#endif
 
 		// delta_alt, alt_reset_counter
 		//  global altitude has opposite sign of local down position
@@ -1183,7 +1190,7 @@ void EKF2::PublishGlobalPosition(const hrt_abstime &timestamp)
 		global_pos.terrain_alt = NAN;
 		global_pos.terrain_alt_valid = false;
 
-#if defined(CONFIG_EKF2_TERRAIN)
+#if defined(CONFIG_EKF2_RANGE_FINDER)
 
 		if (_ekf.isTerrainEstimateValid()) {
 			// Terrain altitude in m, WGS84
@@ -1191,10 +1198,7 @@ void EKF2::PublishGlobalPosition(const hrt_abstime &timestamp)
 			global_pos.terrain_alt_valid = true;
 		}
 
-		float delta_hagl = 0.f;
-		_ekf.get_hagl_reset(&delta_hagl, &global_pos.terrain_reset_counter);
-		global_pos.delta_terrain = -delta_z;
-#endif // CONFIG_EKF2_TERRAIN
+#endif // CONFIG_EKF2_RANGE_FINDER
 
 		global_pos.dead_reckoning = _ekf.control_status_flags().inertial_dead_reckoning
 					    || _ekf.control_status_flags().wind_dead_reckoning;
@@ -1204,7 +1208,6 @@ void EKF2::PublishGlobalPosition(const hrt_abstime &timestamp)
 	}
 }
 
-#if defined(CONFIG_EKF2_GNSS)
 void EKF2::PublishGpsStatus(const hrt_abstime &timestamp)
 {
 	const hrt_abstime timestamp_sample = _ekf.get_gps_sample_delayed().time_us;
@@ -1232,7 +1235,6 @@ void EKF2::PublishGpsStatus(const hrt_abstime &timestamp)
 	estimator_gps_status.check_fail_max_vert_drift   = _ekf.gps_check_fail_status_flags().vdrift;
 	estimator_gps_status.check_fail_max_horz_spd_err = _ekf.gps_check_fail_status_flags().hspeed;
 	estimator_gps_status.check_fail_max_vert_spd_err = _ekf.gps_check_fail_status_flags().vspeed;
-	estimator_gps_status.check_fail_spoofed_gps      = _ekf.gps_check_fail_status_flags().spoofed;
 
 	estimator_gps_status.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 	_estimator_gps_status_pub.publish(estimator_gps_status);
@@ -1240,96 +1242,45 @@ void EKF2::PublishGpsStatus(const hrt_abstime &timestamp)
 
 	_last_gps_status_published = timestamp_sample;
 }
-#endif // CONFIG_EKF2_GNSS
 
 void EKF2::PublishInnovations(const hrt_abstime &timestamp)
 {
 	// publish estimator innovation data
 	estimator_innovations_s innovations{};
 	innovations.timestamp_sample = _ekf.time_delayed_us();
-
-#if defined(CONFIG_EKF2_GNSS)
-	// GPS
-	innovations.gps_hvel[0] = _ekf.aid_src_gnss_vel().innovation[0];
-	innovations.gps_hvel[1] = _ekf.aid_src_gnss_vel().innovation[1];
-	innovations.gps_vvel    = _ekf.aid_src_gnss_vel().innovation[2];
-	innovations.gps_hpos[0] = _ekf.aid_src_gnss_pos().innovation[0];
-	innovations.gps_hpos[1] = _ekf.aid_src_gnss_pos().innovation[1];
-	innovations.gps_vpos    = _ekf.aid_src_gnss_hgt().innovation;
-#endif // CONFIG_EKF2_GNSS
-
+	_ekf.getGpsVelPosInnov(innovations.gps_hvel, innovations.gps_vvel, innovations.gps_hpos, innovations.gps_vpos);
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
-	// External Vision
-	innovations.ev_hvel[0] = _ekf.aid_src_ev_vel().innovation[0];
-	innovations.ev_hvel[1] = _ekf.aid_src_ev_vel().innovation[1];
-	innovations.ev_vvel    = _ekf.aid_src_ev_vel().innovation[2];
-	innovations.ev_hpos[0] = _ekf.aid_src_ev_pos().innovation[0];
-	innovations.ev_hpos[1] = _ekf.aid_src_ev_pos().innovation[1];
-	innovations.ev_vpos    = _ekf.aid_src_ev_hgt().innovation;
+	_ekf.getEvVelPosInnov(innovations.ev_hvel, innovations.ev_vvel, innovations.ev_hpos, innovations.ev_vpos);
 #endif // CONFIG_EKF2_EXTERNAL_VISION
-
-	// Height sensors
+	_ekf.getBaroHgtInnov(innovations.baro_vpos);
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-	innovations.rng_vpos = _ekf.aid_src_rng_hgt().innovation;
+	_ekf.getRngHgtInnov(innovations.rng_vpos);
 #endif // CONFIG_EKF2_RANGE_FINDER
-#if defined(CONFIG_EKF2_BAROMETER)
-	innovations.baro_vpos = _ekf.aid_src_baro_hgt().innovation;
-#endif // CONFIG_EKF2_BAROMETER
-
 #if defined(CONFIG_EKF2_AUXVEL)
-	// Auxiliary velocity
-	innovations.aux_hvel[0] = _ekf.aid_src_aux_vel().innovation[0];
-	innovations.aux_hvel[1] = _ekf.aid_src_aux_vel().innovation[1];
+	_ekf.getAuxVelInnov(innovations.aux_hvel);
 #endif // CONFIG_EKF2_AUXVEL
-
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
-	// Optical flow
-	innovations.flow[0] = _ekf.aid_src_optical_flow().innovation[0];
-	innovations.flow[1] = _ekf.aid_src_optical_flow().innovation[1];
+	_ekf.getFlowInnov(innovations.flow);
+	_ekf.getTerrainFlowInnov(innovations.terr_flow);
 #endif // CONFIG_EKF2_OPTICAL_FLOW
-
-	// heading
-	innovations.heading = _ekf.getHeadingInnov();
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-	// mag_field
-	innovations.mag_field[0] = _ekf.aid_src_mag().innovation[0];
-	innovations.mag_field[1] = _ekf.aid_src_mag().innovation[1];
-	innovations.mag_field[2] = _ekf.aid_src_mag().innovation[2];
-#endif // CONFIG_EKF2_MAGNETOMETER
-
-#if defined(CONFIG_EKF2_GRAVITY_FUSION)
-	// gravity
-	innovations.gravity[0] = _ekf.aid_src_gravity().innovation[0];
-	innovations.gravity[1] = _ekf.aid_src_gravity().innovation[1];
-	innovations.gravity[2] = _ekf.aid_src_gravity().innovation[2];
-#endif // CONFIG_EKF2_GRAVITY_FUSION
-
+	_ekf.getHeadingInnov(innovations.heading);
+	_ekf.getMagInnov(innovations.mag_field);
 #if defined(CONFIG_EKF2_DRAG_FUSION)
-	// drag
-	innovations.drag[0] = _ekf.aid_src_drag().innovation[0];
-	innovations.drag[1] = _ekf.aid_src_drag().innovation[1];
+	_ekf.getDragInnov(innovations.drag);
 #endif // CONFIG_EKF2_DRAG_FUSION
-
 #if defined(CONFIG_EKF2_AIRSPEED)
-	// airspeed
-	innovations.airspeed = _ekf.aid_src_airspeed().innovation;
+	_ekf.getAirspeedInnov(innovations.airspeed);
 #endif // CONFIG_EKF2_AIRSPEED
-
 #if defined(CONFIG_EKF2_SIDESLIP)
-	// beta
-	innovations.beta = _ekf.aid_src_sideslip().innovation;
+	_ekf.getBetaInnov(innovations.beta);
 #endif // CONFIG_EKF2_SIDESLIP
-
-#if defined(CONFIG_EKF2_TERRAIN) && defined(CONFIG_EKF2_RANGE_FINDER)
-	// hagl
-	innovations.hagl = _ekf.aid_src_rng_hgt().innovation;
-#endif // CONFIG_EKF2_TERRAIN && CONFIG_EKF2_RANGE_FINDER
-
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-	// hagl_rate
-	innovations.hagl_rate = _ekf.getHaglRateInnov();
+	_ekf.getHaglInnov(innovations.hagl);
+	_ekf.getHaglRateInnov(innovations.hagl_rate);
 #endif // CONFIG_EKF2_RANGE_FINDER
+	_ekf.getGravityInnov(innovations.gravity);
+	// Not yet supported
+	innovations.aux_vvel = NAN;
 
 	innovations.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 	_estimator_innovations_pub.publish(innovations);
@@ -1345,22 +1296,19 @@ void EKF2::PublishInnovations(const hrt_abstime &timestamp)
 		_preflt_checker.setUsingGpsAiding(_ekf.control_status_flags().gps);
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
 		_preflt_checker.setUsingFlowAiding(_ekf.control_status_flags().opt_flow);
-#endif // CONFIG_EKF2_OPTICAL_FLOW
 
-#if defined(CONFIG_EKF2_TERRAIN) && defined(CONFIG_EKF2_OPTICAL_FLOW)
 		// set dist bottom to scale flow innovation
-		const float dist_bottom = _ekf.getHagl();
+		const float dist_bottom = _ekf.getTerrainVertPos() - _ekf.getPosition()(2);
 		_preflt_checker.setDistBottom(dist_bottom);
-#endif // CONFIG_EKF2_TERRAIN && CONFIG_EKF2_OPTICAL_FLOW
+#endif // CONFIG_EKF2_OPTICAL_FLOW
 
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
 		_preflt_checker.setUsingEvPosAiding(_ekf.control_status_flags().ev_pos);
 		_preflt_checker.setUsingEvVelAiding(_ekf.control_status_flags().ev_vel);
 		_preflt_checker.setUsingEvHgtAiding(_ekf.control_status_flags().ev_hgt);
 #endif // CONFIG_EKF2_EXTERNAL_VISION
-#if defined(CONFIG_EKF2_BAROMETER)
+
 		_preflt_checker.setUsingBaroHgtAiding(_ekf.control_status_flags().baro_hgt);
-#endif // CONFIG_EKF2_BAROMETER
 		_preflt_checker.setUsingGpsHgtAiding(_ekf.control_status_flags().gps_hgt);
 #if defined(CONFIG_EKF2_RANGE_FINDER)
 		_preflt_checker.setUsingRngHgtAiding(_ekf.control_status_flags().rng_hgt);
@@ -1377,89 +1325,40 @@ void EKF2::PublishInnovationTestRatios(const hrt_abstime &timestamp)
 	// publish estimator innovation test ratio data
 	estimator_innovations_s test_ratios{};
 	test_ratios.timestamp_sample = _ekf.time_delayed_us();
-
-#if defined(CONFIG_EKF2_GNSS)
-	// GPS
-	test_ratios.gps_hvel[0] = _ekf.aid_src_gnss_vel().test_ratio[0];
-	test_ratios.gps_hvel[1] = _ekf.aid_src_gnss_vel().test_ratio[1];
-	test_ratios.gps_vvel    = _ekf.aid_src_gnss_vel().test_ratio[2];
-	test_ratios.gps_hpos[0] = _ekf.aid_src_gnss_pos().test_ratio[0];
-	test_ratios.gps_hpos[1] = _ekf.aid_src_gnss_pos().test_ratio[1];
-	test_ratios.gps_vpos    = _ekf.aid_src_gnss_hgt().test_ratio;
-#endif // CONFIG_EKF2_GNSS
-
+	_ekf.getGpsVelPosInnovRatio(test_ratios.gps_hvel[0], test_ratios.gps_vvel, test_ratios.gps_hpos[0],
+				    test_ratios.gps_vpos);
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
-	// External Vision
-	test_ratios.ev_hvel[0] = _ekf.aid_src_ev_vel().test_ratio[0];
-	test_ratios.ev_hvel[1] = _ekf.aid_src_ev_vel().test_ratio[1];
-	test_ratios.ev_vvel    = _ekf.aid_src_ev_vel().test_ratio[2];
-	test_ratios.ev_hpos[0] = _ekf.aid_src_ev_pos().test_ratio[0];
-	test_ratios.ev_hpos[1] = _ekf.aid_src_ev_pos().test_ratio[1];
-	test_ratios.ev_vpos    = _ekf.aid_src_ev_hgt().test_ratio;
+	_ekf.getEvVelPosInnovRatio(test_ratios.ev_hvel[0], test_ratios.ev_vvel, test_ratios.ev_hpos[0], test_ratios.ev_vpos);
 #endif // CONFIG_EKF2_EXTERNAL_VISION
-
-	// Height sensors
+	_ekf.getBaroHgtInnovRatio(test_ratios.baro_vpos);
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-	test_ratios.rng_vpos = _ekf.aid_src_rng_hgt().test_ratio;
+	_ekf.getRngHgtInnovRatio(test_ratios.rng_vpos);
 #endif // CONFIG_EKF2_RANGE_FINDER
-#if defined(CONFIG_EKF2_BAROMETER)
-	test_ratios.baro_vpos = _ekf.aid_src_baro_hgt().test_ratio;
-#endif // CONFIG_EKF2_BAROMETER
-
 #if defined(CONFIG_EKF2_AUXVEL)
-	// Auxiliary velocity
-	test_ratios.aux_hvel[0] = _ekf.aid_src_aux_vel().test_ratio[0];
-	test_ratios.aux_hvel[1] = _ekf.aid_src_aux_vel().test_ratio[1];
+	_ekf.getAuxVelInnovRatio(test_ratios.aux_hvel[0]);
 #endif // CONFIG_EKF2_AUXVEL
-
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
-	// Optical flow
-	test_ratios.flow[0] = _ekf.aid_src_optical_flow().test_ratio[0];
-	test_ratios.flow[1] = _ekf.aid_src_optical_flow().test_ratio[1];
+	_ekf.getFlowInnovRatio(test_ratios.flow[0]);
+	_ekf.getTerrainFlowInnovRatio(test_ratios.terr_flow[0]);
 #endif // CONFIG_EKF2_OPTICAL_FLOW
-
-	// heading
-	test_ratios.heading = _ekf.getHeadingInnovRatio();
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-	// mag_field
-	test_ratios.mag_field[0] = _ekf.aid_src_mag().test_ratio[0];
-	test_ratios.mag_field[1] = _ekf.aid_src_mag().test_ratio[1];
-	test_ratios.mag_field[2] = _ekf.aid_src_mag().test_ratio[2];
-#endif // CONFIG_EKF2_MAGNETOMETER
-
-#if defined(CONFIG_EKF2_GRAVITY_FUSION)
-	// gravity
-	test_ratios.gravity[0] = _ekf.aid_src_gravity().test_ratio[0];
-	test_ratios.gravity[1] = _ekf.aid_src_gravity().test_ratio[1];
-	test_ratios.gravity[2] = _ekf.aid_src_gravity().test_ratio[2];
-#endif // CONFIG_EKF2_GRAVITY_FUSION
-
+	_ekf.getHeadingInnovRatio(test_ratios.heading);
+	_ekf.getMagInnovRatio(test_ratios.mag_field[0]);
 #if defined(CONFIG_EKF2_DRAG_FUSION)
-	// drag
-	test_ratios.drag[0] = _ekf.aid_src_drag().test_ratio[0];
-	test_ratios.drag[1] = _ekf.aid_src_drag().test_ratio[1];
+	_ekf.getDragInnovRatio(&test_ratios.drag[0]);
 #endif // CONFIG_EKF2_DRAG_FUSION
-
 #if defined(CONFIG_EKF2_AIRSPEED)
-	// airspeed
-	test_ratios.airspeed = _ekf.aid_src_airspeed().test_ratio;
+	_ekf.getAirspeedInnovRatio(test_ratios.airspeed);
 #endif // CONFIG_EKF2_AIRSPEED
-
 #if defined(CONFIG_EKF2_SIDESLIP)
-	// beta
-	test_ratios.beta = _ekf.aid_src_sideslip().test_ratio;
+	_ekf.getBetaInnovRatio(test_ratios.beta);
 #endif // CONFIG_EKF2_SIDESLIP
-
-#if defined(CONFIG_EKF2_TERRAIN) && defined(CONFIG_EKF2_RANGE_FINDER)
-	// hagl
-	test_ratios.hagl = _ekf.aid_src_rng_hgt().test_ratio;
-#endif // CONFIG_EKF2_TERRAIN && CONFIG_EKF2_RANGE_FINDER
-
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-	// hagl_rate
-	test_ratios.hagl_rate = _ekf.getHaglRateInnovRatio();
+	_ekf.getHaglInnovRatio(test_ratios.hagl);
+	_ekf.getHaglRateInnovRatio(test_ratios.hagl_rate);
 #endif // CONFIG_EKF2_RANGE_FINDER
+	_ekf.getGravityInnovRatio(test_ratios.gravity[0]);
+	// Not yet supported
+	test_ratios.aux_vvel = NAN;
 
 	test_ratios.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 	_estimator_innovation_test_ratios_pub.publish(test_ratios);
@@ -1470,89 +1369,39 @@ void EKF2::PublishInnovationVariances(const hrt_abstime &timestamp)
 	// publish estimator innovation variance data
 	estimator_innovations_s variances{};
 	variances.timestamp_sample = _ekf.time_delayed_us();
-
-#if defined(CONFIG_EKF2_GNSS)
-	// GPS
-	variances.gps_hvel[0] = _ekf.aid_src_gnss_vel().innovation_variance[0];
-	variances.gps_hvel[1] = _ekf.aid_src_gnss_vel().innovation_variance[1];
-	variances.gps_vvel    = _ekf.aid_src_gnss_vel().innovation_variance[2];
-	variances.gps_hpos[0] = _ekf.aid_src_gnss_pos().innovation_variance[0];
-	variances.gps_hpos[1] = _ekf.aid_src_gnss_pos().innovation_variance[1];
-	variances.gps_vpos    = _ekf.aid_src_gnss_hgt().innovation_variance;
-#endif // CONFIG_EKF2_GNSS
-
+	_ekf.getGpsVelPosInnovVar(variances.gps_hvel, variances.gps_vvel, variances.gps_hpos, variances.gps_vpos);
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
-	// External Vision
-	variances.ev_hvel[0] = _ekf.aid_src_ev_vel().innovation_variance[0];
-	variances.ev_hvel[1] = _ekf.aid_src_ev_vel().innovation_variance[1];
-	variances.ev_vvel    = _ekf.aid_src_ev_vel().innovation_variance[2];
-	variances.ev_hpos[0] = _ekf.aid_src_ev_pos().innovation_variance[0];
-	variances.ev_hpos[1] = _ekf.aid_src_ev_pos().innovation_variance[1];
-	variances.ev_vpos    = _ekf.aid_src_ev_hgt().innovation_variance;
+	_ekf.getEvVelPosInnovVar(variances.ev_hvel, variances.ev_vvel, variances.ev_hpos, variances.ev_vpos);
 #endif // CONFIG_EKF2_EXTERNAL_VISION
-
-	// Height sensors
+	_ekf.getBaroHgtInnovVar(variances.baro_vpos);
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-	variances.rng_vpos = _ekf.aid_src_rng_hgt().innovation_variance;
+	_ekf.getRngHgtInnovVar(variances.rng_vpos);
 #endif // CONFIG_EKF2_RANGE_FINDER
-#if defined(CONFIG_EKF2_BAROMETER)
-	variances.baro_vpos = _ekf.aid_src_baro_hgt().innovation_variance;
-#endif // CONFIG_EKF2_BAROMETER
-
 #if defined(CONFIG_EKF2_AUXVEL)
-	// Auxiliary velocity
-	variances.aux_hvel[0] = _ekf.aid_src_aux_vel().innovation_variance[0];
-	variances.aux_hvel[1] = _ekf.aid_src_aux_vel().innovation_variance[1];
+	_ekf.getAuxVelInnovVar(variances.aux_hvel);
 #endif // CONFIG_EKF2_AUXVEL
-
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
-	// Optical flow
-	variances.flow[0] = _ekf.aid_src_optical_flow().innovation_variance[0];
-	variances.flow[1] = _ekf.aid_src_optical_flow().innovation_variance[1];
+	_ekf.getFlowInnovVar(variances.flow);
+	_ekf.getTerrainFlowInnovVar(variances.terr_flow);
 #endif // CONFIG_EKF2_OPTICAL_FLOW
-
-	// heading
-	variances.heading = _ekf.getHeadingInnovVar();
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-	// mag_field
-	variances.mag_field[0] = _ekf.aid_src_mag().innovation_variance[0];
-	variances.mag_field[1] = _ekf.aid_src_mag().innovation_variance[1];
-	variances.mag_field[2] = _ekf.aid_src_mag().innovation_variance[2];
-#endif // CONFIG_EKF2_MAGNETOMETER
-
-#if defined(CONFIG_EKF2_GRAVITY_FUSION)
-	// gravity
-	variances.gravity[0] = _ekf.aid_src_gravity().innovation_variance[0];
-	variances.gravity[1] = _ekf.aid_src_gravity().innovation_variance[1];
-	variances.gravity[2] = _ekf.aid_src_gravity().innovation_variance[2];
-#endif // CONFIG_EKF2_GRAVITY_FUSION
-
+	_ekf.getHeadingInnovVar(variances.heading);
+	_ekf.getMagInnovVar(variances.mag_field);
 #if defined(CONFIG_EKF2_DRAG_FUSION)
-	// drag
-	variances.drag[0] = _ekf.aid_src_drag().innovation_variance[0];
-	variances.drag[1] = _ekf.aid_src_drag().innovation_variance[1];
+	_ekf.getDragInnovVar(variances.drag);
 #endif // CONFIG_EKF2_DRAG_FUSION
-
 #if defined(CONFIG_EKF2_AIRSPEED)
-	// airspeed
-	variances.airspeed = _ekf.aid_src_airspeed().innovation_variance;
+	_ekf.getAirspeedInnovVar(variances.airspeed);
 #endif // CONFIG_EKF2_AIRSPEED
-
 #if defined(CONFIG_EKF2_SIDESLIP)
-	// beta
-	variances.beta = _ekf.aid_src_sideslip().innovation_variance;
+	_ekf.getBetaInnovVar(variances.beta);
 #endif // CONFIG_EKF2_SIDESLIP
-
-#if defined(CONFIG_EKF2_TERRAIN) && defined(CONFIG_EKF2_RANGE_FINDER)
-	// hagl
-	variances.hagl = _ekf.aid_src_rng_hgt().innovation_variance;
-#endif // CONFIG_EKF2_TERRAIN && CONFIG_EKF2_RANGE_FINDER
-
 #if defined(CONFIG_EKF2_RANGE_FINDER)
-	// hagl_rate
-	variances.hagl_rate = _ekf.getHaglRateInnovVar();
+	_ekf.getHaglInnovVar(variances.hagl);
+	_ekf.getHaglRateInnovVar(variances.hagl_rate);
 #endif // CONFIG_EKF2_RANGE_FINDER
+	_ekf.getGravityInnovVar(variances.gravity);
+	// Not yet supported
+	variances.aux_vvel = NAN;
 
 	variances.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 	_estimator_innovation_variances_pub.publish(variances);
@@ -1614,30 +1463,13 @@ void EKF2::PublishLocalPosition(const hrt_abstime &timestamp)
 	_ekf.get_quat_reset(&delta_q_reset(0), &lpos.heading_reset_counter);
 
 	lpos.heading = Eulerf(_ekf.getQuaternion()).psi();
-	lpos.unaided_heading = _ekf.getUnaidedYaw();
-	lpos.heading_var = _ekf.getYawVar();
 	lpos.delta_heading = Eulerf(delta_q_reset).psi();
 	lpos.heading_good_for_control = _ekf.isYawFinalAlignComplete();
-	lpos.tilt_var = _ekf.getTiltVariance();
 
-#if defined(CONFIG_EKF2_TERRAIN)
 	// Distance to bottom surface (ground) in meters, must be positive
+	lpos.dist_bottom = math::max(_ekf.getTerrainVertPos() - lpos.z, 0.f);
 	lpos.dist_bottom_valid = _ekf.isTerrainEstimateValid();
-	lpos.dist_bottom = math::max(_ekf.getHagl(), 0.f);
-	lpos.dist_bottom_var = _ekf.getTerrainVariance();
-	_ekf.get_hagl_reset(&lpos.delta_dist_bottom, &lpos.dist_bottom_reset_counter);
-
-	lpos.dist_bottom_sensor_bitfield = vehicle_local_position_s::DIST_BOTTOM_SENSOR_NONE;
-
-	if (_ekf.control_status_flags().rng_terrain) {
-		lpos.dist_bottom_sensor_bitfield |= vehicle_local_position_s::DIST_BOTTOM_SENSOR_RANGE;
-	}
-
-	if (_ekf.control_status_flags().opt_flow_terrain) {
-		lpos.dist_bottom_sensor_bitfield |= vehicle_local_position_s::DIST_BOTTOM_SENSOR_FLOW;
-	}
-
-#endif // CONFIG_EKF2_TERRAIN
+	lpos.dist_bottom_sensor_bitfield = _ekf.getTerrainEstimateSensorBitfield();
 
 	_ekf.get_ekf_lpos_accuracy(&lpos.eph, &lpos.epv);
 	_ekf.get_ekf_vel_accuracy(&lpos.evh, &lpos.evv);
@@ -1699,13 +1531,13 @@ void EKF2::PublishOdometry(const hrt_abstime &timestamp, const imuSample &imu_sa
 	angular_velocity.copyTo(odom.angular_velocity);
 
 	// velocity covariances
-	_ekf.getVelocityVariance().copyTo(odom.velocity_variance);
+	_ekf.velocity_covariances().diag().copyTo(odom.velocity_variance);
 
 	// position covariances
-	_ekf.getPositionVariance().copyTo(odom.position_variance);
+	_ekf.position_covariances().diag().copyTo(odom.position_variance);
 
 	// orientation covariance
-	_ekf.getRotVarBody().copyTo(odom.orientation_variance);
+	_ekf.calcRotVecVariances().copyTo(odom.orientation_variance);
 
 	odom.reset_counter = _ekf.get_quat_reset_count()
 			     + _ekf.get_velNE_reset_count() + _ekf.get_velD_reset_count()
@@ -1723,17 +1555,12 @@ void EKF2::PublishSensorBias(const hrt_abstime &timestamp)
 	// estimator_sensor_bias
 	const Vector3f gyro_bias{_ekf.getGyroBias()};
 	const Vector3f accel_bias{_ekf.getAccelBias()};
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-	const Vector3f mag_bias {_ekf.getMagBias()};
-#endif // CONFIG_EKF2_MAGNETOMETER
+	const Vector3f mag_bias{_ekf.getMagBias()};
 
 	// publish at ~1 Hz, or sooner if there's a change
 	if ((gyro_bias - _last_gyro_bias_published).longerThan(0.001f)
 	    || (accel_bias - _last_accel_bias_published).longerThan(0.001f)
-#if defined(CONFIG_EKF2_MAGNETOMETER)
 	    || (mag_bias - _last_mag_bias_published).longerThan(0.001f)
-#endif // CONFIG_EKF2_MAGNETOMETER
 	    || (timestamp >= _last_sensor_bias_published + 1_s)) {
 
 		estimator_sensor_bias_s bias{};
@@ -1741,44 +1568,34 @@ void EKF2::PublishSensorBias(const hrt_abstime &timestamp)
 
 		// take device ids from sensor_selection_s if not using specific vehicle_imu_s
 		if ((_device_id_gyro != 0) && (_param_ekf2_imu_ctrl.get() & static_cast<int32_t>(ImuCtrl::GyroBias))) {
-			const Vector3f bias_var{_ekf.getGyroBiasVariance()};
-
 			bias.gyro_device_id = _device_id_gyro;
 			gyro_bias.copyTo(bias.gyro_bias);
 			bias.gyro_bias_limit = _ekf.getGyroBiasLimit();
-			bias_var.copyTo(bias.gyro_bias_variance);
-			bias.gyro_bias_valid = bias_var.longerThan(0.f) && !bias_var.longerThan(0.1f);
+			_ekf.getGyroBiasVariance().copyTo(bias.gyro_bias_variance);
+			bias.gyro_bias_valid = true;  // TODO
 			bias.gyro_bias_stable = _gyro_cal.cal_available;
 			_last_gyro_bias_published = gyro_bias;
 		}
 
 		if ((_device_id_accel != 0) && (_param_ekf2_imu_ctrl.get() & static_cast<int32_t>(ImuCtrl::AccelBias))) {
-			const Vector3f bias_var{_ekf.getAccelBiasVariance()};
-
 			bias.accel_device_id = _device_id_accel;
 			accel_bias.copyTo(bias.accel_bias);
 			bias.accel_bias_limit = _ekf.getAccelBiasLimit();
-			bias_var.copyTo(bias.accel_bias_variance);
-			bias.accel_bias_valid = bias_var.longerThan(0.f) && !bias_var.longerThan(0.1f);
+			_ekf.getAccelBiasVariance().copyTo(bias.accel_bias_variance);
+			bias.accel_bias_valid = true;  // TODO
 			bias.accel_bias_stable = _accel_cal.cal_available;
 			_last_accel_bias_published = accel_bias;
 		}
 
-#if defined(CONFIG_EKF2_MAGNETOMETER)
-
 		if (_device_id_mag != 0) {
-			const Vector3f bias_var{_ekf.getMagBiasVariance()};
-
 			bias.mag_device_id = _device_id_mag;
 			mag_bias.copyTo(bias.mag_bias);
 			bias.mag_bias_limit = _ekf.getMagBiasLimit();
-			bias_var.copyTo(bias.mag_bias_variance);
-			bias.mag_bias_valid = bias_var.longerThan(0.f) && !bias_var.longerThan(0.1f);
+			_ekf.getMagBiasVariance().copyTo(bias.mag_bias_variance);
+			bias.mag_bias_valid = true; // TODO
 			bias.mag_bias_stable = _mag_cal.cal_available;
 			_last_mag_bias_published = mag_bias;
 		}
-
-#endif // CONFIG_EKF2_MAGNETOMETER
 
 		bias.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 		_estimator_sensor_bias_pub.publish(bias);
@@ -1792,9 +1609,8 @@ void EKF2::PublishStates(const hrt_abstime &timestamp)
 	// publish estimator states
 	estimator_states_s states;
 	states.timestamp_sample = _ekf.time_delayed_us();
-	const auto state_vector = _ekf.state().vector();
-	state_vector.copyTo(states.states);
-	states.n_states = state_vector.size();
+	states.n_states = Ekf::_k_num_states;
+	_ekf.getStateAtFusionHorizonAsVector().copyTo(states.states);
 	_ekf.covariances_diagonal().copyTo(states.covariances);
 	states.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 	_estimator_states_pub.publish(states);
@@ -1807,22 +1623,22 @@ void EKF2::PublishStatus(const hrt_abstime &timestamp)
 
 	_ekf.getOutputTrackingError().copyTo(status.output_tracking_error);
 
-#if defined(CONFIG_EKF2_GNSS)
 	// only report enabled GPS check failures (the param indexes are shifted by 1 bit, because they don't include
 	// the GPS Fix bit, which is always checked)
 	status.gps_check_fail_flags = _ekf.gps_check_fail_status().value & (((uint16_t)_params->gps_check_mask << 1) | 1);
-#endif // CONFIG_EKF2_GNSS
 
 	status.control_mode_flags = _ekf.control_status().value;
 	status.filter_fault_flags = _ekf.fault_status().value;
 
-	status.mag_test_ratio = _ekf.getHeadingInnovationTestRatio();
-	status.vel_test_ratio = _ekf.getVelocityInnovationTestRatio();
-	status.pos_test_ratio = _ekf.getHorizontalPositionInnovationTestRatio();
-	status.hgt_test_ratio = _ekf.getVerticalPositionInnovationTestRatio();
-	status.tas_test_ratio = _ekf.getAirspeedInnovationTestRatio();
-	status.hagl_test_ratio = _ekf.getHeightAboveGroundInnovationTestRatio();
-	status.beta_test_ratio = _ekf.getSyntheticSideslipInnovationTestRatio();
+	uint16_t innov_check_flags_temp = 0;
+	_ekf.get_innovation_test_status(innov_check_flags_temp, status.mag_test_ratio,
+					status.vel_test_ratio, status.pos_test_ratio,
+					status.hgt_test_ratio, status.tas_test_ratio,
+					status.hagl_test_ratio, status.beta_test_ratio);
+
+	// Bit mismatch between ecl and Firmware, combine the 2 first bits to preserve msg definition
+	// TODO: legacy use only, those flags are also in estimator_status_flags
+	status.innovation_check_flags = (innov_check_flags_temp >> 1) | (innov_check_flags_temp & 0x1);
 
 	_ekf.get_ekf_lpos_accuracy(&status.pos_horiz_accuracy, &status.pos_vert_accuracy);
 	_ekf.get_ekf_soln_status(&status.solution_status_flags);
@@ -1843,17 +1659,9 @@ void EKF2::PublishStatus(const hrt_abstime &timestamp)
 	status.pre_flt_fail_mag_field_disturbed = _ekf.control_status_flags().mag_field_disturbed;
 
 	status.accel_device_id = _device_id_accel;
-#if defined(CONFIG_EKF2_BAROMETER)
 	status.baro_device_id = _device_id_baro;
-#endif // CONFIG_EKF2_BAROMETER
 	status.gyro_device_id = _device_id_gyro;
-
-#if defined(CONFIG_EKF2_MAGNETOMETER)
 	status.mag_device_id = _device_id_mag;
-
-	_ekf.get_mag_checks(status.mag_inclination_deg, status.mag_inclination_ref_deg, status.mag_strength_gs,
-			    status.mag_strength_ref_gs);
-#endif // CONFIG_EKF2_MAGNETOMETER
 
 	status.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 	_estimator_status_pub.publish(status);
@@ -1912,12 +1720,12 @@ void EKF2::PublishStatusFlags(const hrt_abstime &timestamp)
 		status_flags.cs_fuse_aspd             = _ekf.control_status_flags().fuse_aspd;
 		status_flags.cs_gnd_effect            = _ekf.control_status_flags().gnd_effect;
 		status_flags.cs_rng_stuck             = _ekf.control_status_flags().rng_stuck;
-		status_flags.cs_gnss_yaw               = _ekf.control_status_flags().gnss_yaw;
+		status_flags.cs_gps_yaw               = _ekf.control_status_flags().gps_yaw;
 		status_flags.cs_mag_aligned_in_flight = _ekf.control_status_flags().mag_aligned_in_flight;
 		status_flags.cs_ev_vel                = _ekf.control_status_flags().ev_vel;
 		status_flags.cs_synthetic_mag_z       = _ekf.control_status_flags().synthetic_mag_z;
 		status_flags.cs_vehicle_at_rest       = _ekf.control_status_flags().vehicle_at_rest;
-		status_flags.cs_gnss_yaw_fault         = _ekf.control_status_flags().gnss_yaw_fault;
+		status_flags.cs_gps_yaw_fault         = _ekf.control_status_flags().gps_yaw_fault;
 		status_flags.cs_rng_fault             = _ekf.control_status_flags().rng_fault;
 		status_flags.cs_inertial_dead_reckoning = _ekf.control_status_flags().inertial_dead_reckoning;
 		status_flags.cs_wind_dead_reckoning     = _ekf.control_status_flags().wind_dead_reckoning;
@@ -1925,12 +1733,6 @@ void EKF2::PublishStatusFlags(const hrt_abstime &timestamp)
 		status_flags.cs_fake_pos                = _ekf.control_status_flags().fake_pos;
 		status_flags.cs_fake_hgt                = _ekf.control_status_flags().fake_hgt;
 		status_flags.cs_gravity_vector          = _ekf.control_status_flags().gravity_vector;
-		status_flags.cs_mag                     = _ekf.control_status_flags().mag;
-		status_flags.cs_ev_yaw_fault            = _ekf.control_status_flags().ev_yaw_fault;
-		status_flags.cs_mag_heading_consistent  = _ekf.control_status_flags().mag_heading_consistent;
-		status_flags.cs_aux_gpos                = _ekf.control_status_flags().aux_gpos;
-		status_flags.cs_rng_terrain    = _ekf.control_status_flags().rng_terrain;
-		status_flags.cs_opt_flow_terrain    = _ekf.control_status_flags().opt_flow_terrain;
 
 		status_flags.fault_status_changes     = _filter_fault_status_changes;
 		status_flags.fs_bad_mag_x             = _ekf.fault_status_flags().bad_mag_x;
@@ -1942,6 +1744,12 @@ void EKF2::PublishStatusFlags(const hrt_abstime &timestamp)
 		status_flags.fs_bad_sideslip          = _ekf.fault_status_flags().bad_sideslip;
 		status_flags.fs_bad_optflow_x         = _ekf.fault_status_flags().bad_optflow_X;
 		status_flags.fs_bad_optflow_y         = _ekf.fault_status_flags().bad_optflow_Y;
+		status_flags.fs_bad_vel_n             = _ekf.fault_status_flags().bad_vel_N;
+		status_flags.fs_bad_vel_e             = _ekf.fault_status_flags().bad_vel_E;
+		status_flags.fs_bad_vel_d             = _ekf.fault_status_flags().bad_vel_D;
+		status_flags.fs_bad_pos_n             = _ekf.fault_status_flags().bad_pos_N;
+		status_flags.fs_bad_pos_e             = _ekf.fault_status_flags().bad_pos_E;
+		status_flags.fs_bad_pos_d             = _ekf.fault_status_flags().bad_pos_D;
 		status_flags.fs_bad_acc_bias          = _ekf.fault_status_flags().bad_acc_bias;
 		status_flags.fs_bad_acc_vertical      = _ekf.fault_status_flags().bad_acc_vertical;
 		status_flags.fs_bad_acc_clipping      = _ekf.fault_status_flags().bad_acc_clipping;
@@ -1965,7 +1773,6 @@ void EKF2::PublishStatusFlags(const hrt_abstime &timestamp)
 	}
 }
 
-#if defined(CONFIG_EKF2_GNSS)
 void EKF2::PublishYawEstimatorStatus(const hrt_abstime &timestamp)
 {
 	static_assert(sizeof(yaw_estimator_status_s::yaw) / sizeof(float) == N_MODELS_EKFGSF,
@@ -1985,9 +1792,7 @@ void EKF2::PublishYawEstimatorStatus(const hrt_abstime &timestamp)
 		_yaw_est_pub.publish(yaw_est_test_data);
 	}
 }
-#endif // CONFIG_EKF2_GNSS
 
-#if defined(CONFIG_EKF2_WIND)
 void EKF2::PublishWindEstimate(const hrt_abstime &timestamp)
 {
 	if (_ekf.get_wind_status()) {
@@ -1999,12 +1804,12 @@ void EKF2::PublishWindEstimate(const hrt_abstime &timestamp)
 		const Vector2f wind_vel_var = _ekf.getWindVelocityVariance();
 
 #if defined(CONFIG_EKF2_AIRSPEED)
-		wind.tas_innov = _ekf.aid_src_airspeed().innovation;
-		wind.tas_innov_var = _ekf.aid_src_airspeed().innovation_variance;
+		_ekf.getAirspeedInnov(wind.tas_innov);
+		_ekf.getAirspeedInnovVar(wind.tas_innov_var);
 #endif // CONFIG_EKF2_AIRSPEED
 #if defined(CONFIG_EKF2_SIDESLIP)
-		wind.beta_innov = _ekf.aid_src_sideslip().innovation;
-		wind.beta_innov = _ekf.aid_src_sideslip().innovation_variance;
+		_ekf.getBetaInnov(wind.beta_innov);
+		_ekf.getBetaInnovVar(wind.beta_innov_var);
 #endif // CONFIG_EKF2_SIDESLIP
 
 		wind.windspeed_north = wind_vel(0);
@@ -2016,14 +1821,13 @@ void EKF2::PublishWindEstimate(const hrt_abstime &timestamp)
 		_wind_pub.publish(wind);
 	}
 }
-#endif // CONFIG_EKF2_WIND
 
 #if defined(CONFIG_EKF2_OPTICAL_FLOW)
 void EKF2::PublishOpticalFlowVel(const hrt_abstime &timestamp)
 {
 	const hrt_abstime timestamp_sample = _ekf.aid_src_optical_flow().timestamp_sample;
 
-	if ((timestamp_sample != 0) && (timestamp_sample > _optical_flow_vel_pub_last)) {
+	if ((timestamp_sample != 0) && (timestamp_sample > _status_optical_flow_pub_last)) {
 
 		vehicle_optical_flow_vel_s flow_vel{};
 		flow_vel.timestamp_sample = _ekf.aid_src_optical_flow().timestamp_sample;
@@ -2031,24 +1835,19 @@ void EKF2::PublishOpticalFlowVel(const hrt_abstime &timestamp)
 		_ekf.getFlowVelBody().copyTo(flow_vel.vel_body);
 		_ekf.getFlowVelNE().copyTo(flow_vel.vel_ne);
 
-		_ekf.getFlowUncompensated().copyTo(flow_vel.flow_rate_uncompensated);
-		_ekf.getFlowCompensated().copyTo(flow_vel.flow_rate_compensated);
+		_ekf.getFlowUncompensated().copyTo(flow_vel.flow_uncompensated_integral);
+		_ekf.getFlowCompensated().copyTo(flow_vel.flow_compensated_integral);
 
 		_ekf.getFlowGyro().copyTo(flow_vel.gyro_rate);
-
-		_ekf.getFlowGyroBias().copyTo(flow_vel.gyro_bias);
-		_ekf.getFlowRefBodyRate().copyTo(flow_vel.ref_gyro);
+		_ekf.getFlowGyroIntegral().copyTo(flow_vel.gyro_rate_integral);
 
 		flow_vel.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
 
 		_estimator_optical_flow_vel_pub.publish(flow_vel);
-
-		_optical_flow_vel_pub_last = timestamp_sample;
 	}
 }
 #endif // CONFIG_EKF2_OPTICAL_FLOW
 
-#if defined(CONFIG_EKF2_GNSS)
 float EKF2::filter_altitude_ellipsoid(float amsl_hgt)
 {
 	float height_diff = static_cast<float>(_gps_alttitude_ellipsoid) * 1e-3f - amsl_hgt;
@@ -2069,7 +1868,6 @@ float EKF2::filter_altitude_ellipsoid(float amsl_hgt)
 
 	return amsl_hgt + _wgs84_hgt_offset;
 }
-#endif // CONFIG_EKF2_GNSS
 
 #if defined(CONFIG_EKF2_AIRSPEED)
 void EKF2::UpdateAirspeedSample(ekf2_timestamps_s &ekf2_timestamps)
@@ -2077,9 +1875,16 @@ void EKF2::UpdateAirspeedSample(ekf2_timestamps_s &ekf2_timestamps)
 	// EKF airspeed sample
 	// prefer ORB_ID(airspeed_validated) if available, otherwise fallback to raw airspeed ORB_ID(airspeed)
 	if (_airspeed_validated_sub.updated()) {
+		const unsigned last_generation = _airspeed_validated_sub.get_last_generation();
 		airspeed_validated_s airspeed_validated;
 
 		if (_airspeed_validated_sub.update(&airspeed_validated)) {
+			if (_msg_missed_airspeed_validated_perf == nullptr) {
+				_msg_missed_airspeed_validated_perf = perf_alloc(PC_COUNT, MODULE_NAME": airspeed validated messages missed");
+
+			} else if (_airspeed_validated_sub.get_last_generation() != last_generation + 1) {
+				perf_count(_msg_missed_airspeed_validated_perf);
+			}
 
 			if (PX4_ISFINITE(airspeed_validated.true_airspeed_m_s)
 			    && PX4_ISFINITE(airspeed_validated.calibrated_airspeed_m_s)
@@ -2099,9 +1904,17 @@ void EKF2::UpdateAirspeedSample(ekf2_timestamps_s &ekf2_timestamps)
 
 	} else if (((ekf2_timestamps.timestamp - _airspeed_validated_timestamp_last) > 3_s) && _airspeed_sub.updated()) {
 		// use ORB_ID(airspeed) if ORB_ID(airspeed_validated) is unavailable
+		const unsigned last_generation = _airspeed_sub.get_last_generation();
 		airspeed_s airspeed;
 
 		if (_airspeed_sub.update(&airspeed)) {
+			if (_msg_missed_airspeed_perf == nullptr) {
+				_msg_missed_airspeed_perf = perf_alloc(PC_COUNT, MODULE_NAME": airspeed messages missed");
+
+			} else if (_airspeed_sub.get_last_generation() != last_generation + 1) {
+				perf_count(_msg_missed_airspeed_perf);
+			}
+
 			// The airspeed measurement received via ORB_ID(airspeed) topic has not been corrected
 			// for scale factor errors and requires the ASPD_SCALE correction to be applied.
 			const float true_airspeed_m_s = airspeed.true_airspeed_m_s * _airspeed_scale_factor;
@@ -2130,9 +1943,17 @@ void EKF2::UpdateAuxVelSample(ekf2_timestamps_s &ekf2_timestamps)
 {
 	// EKF auxiliary velocity sample
 	//  - use the landing target pose estimate as another source of velocity data
+	const unsigned last_generation = _landing_target_pose_sub.get_last_generation();
 	landing_target_pose_s landing_target_pose;
 
 	if (_landing_target_pose_sub.update(&landing_target_pose)) {
+		if (_msg_missed_landing_target_pose_perf == nullptr) {
+			_msg_missed_landing_target_pose_perf = perf_alloc(PC_COUNT, MODULE_NAME": landing_target_pose messages missed");
+
+		} else if (_landing_target_pose_sub.get_last_generation() != last_generation + 1) {
+			perf_count(_msg_missed_landing_target_pose_perf);
+		}
+
 		// we can only use the landing target if it has a fixed position and  a valid velocity estimate
 		if (landing_target_pose.is_static && landing_target_pose.rel_vel_valid) {
 			// velocity of vehicle relative to target has opposite sign to target relative to vehicle
@@ -2147,13 +1968,19 @@ void EKF2::UpdateAuxVelSample(ekf2_timestamps_s &ekf2_timestamps)
 }
 #endif // CONFIG_EKF2_AUXVEL
 
-#if defined(CONFIG_EKF2_BAROMETER)
 void EKF2::UpdateBaroSample(ekf2_timestamps_s &ekf2_timestamps)
 {
 	// EKF baro sample
+	const unsigned last_generation = _airdata_sub.get_last_generation();
 	vehicle_air_data_s airdata;
 
 	if (_airdata_sub.update(&airdata)) {
+		if (_msg_missed_air_data_perf == nullptr) {
+			_msg_missed_air_data_perf = perf_alloc(PC_COUNT, MODULE_NAME": vehicle_air_data messages missed");
+
+		} else if (_airdata_sub.get_last_generation() != last_generation + 1) {
+			perf_count(_msg_missed_air_data_perf);
+		}
 
 		bool reset = false;
 
@@ -2184,17 +2011,23 @@ void EKF2::UpdateBaroSample(ekf2_timestamps_s &ekf2_timestamps)
 				(int64_t)ekf2_timestamps.timestamp / 100);
 	}
 }
-#endif // CONFIG_EKF2_BAROMETER
 
 #if defined(CONFIG_EKF2_EXTERNAL_VISION)
 bool EKF2::UpdateExtVisionSample(ekf2_timestamps_s &ekf2_timestamps)
 {
 	// EKF external vision sample
 	bool new_ev_odom = false;
+	const unsigned last_generation = _ev_odom_sub.get_last_generation();
 
 	vehicle_odometry_s ev_odom;
 
 	if (_ev_odom_sub.update(&ev_odom)) {
+		if (_msg_missed_odometry_perf == nullptr) {
+			_msg_missed_odometry_perf = perf_alloc(PC_COUNT, MODULE_NAME": vehicle_visual_odometry messages missed");
+
+		} else if (_ev_odom_sub.get_last_generation() != last_generation + 1) {
+			perf_count(_msg_missed_odometry_perf);
+		}
 
 		extVisionSample ev_data{};
 		ev_data.pos.setNaN();
@@ -2340,34 +2173,28 @@ bool EKF2::UpdateFlowSample(ekf2_timestamps_s &ekf2_timestamps)
 {
 	// EKF flow sample
 	bool new_optical_flow = false;
+	const unsigned last_generation = _vehicle_optical_flow_sub.get_last_generation();
 	vehicle_optical_flow_s optical_flow;
 
 	if (_vehicle_optical_flow_sub.update(&optical_flow)) {
+		if (_msg_missed_optical_flow_perf == nullptr) {
+			_msg_missed_optical_flow_perf = perf_alloc(PC_COUNT, MODULE_NAME": optical_flow messages missed");
 
-		const float dt = 1e-6f * (float)optical_flow.integration_timespan_us;
-		Vector2f flow_rate;
-		Vector3f gyro_rate;
-
-		if (dt > FLT_EPSILON) {
-			// NOTE: the EKF uses the reverse sign convention to the flow sensor. EKF assumes positive LOS rate
-			// is produced by a RH rotation of the image about the sensor axis.
-			flow_rate = Vector2f(-optical_flow.pixel_flow[0], -optical_flow.pixel_flow[1]) / dt;
-			gyro_rate = Vector3f(-optical_flow.delta_angle[0], -optical_flow.delta_angle[1], -optical_flow.delta_angle[2]) / dt;
-
-		} else if (optical_flow.quality == 0) {
-			// handle special case of SITL and PX4Flow where dt is forced to zero when the quaity is 0
-			flow_rate.zero();
-			gyro_rate.zero();
+		} else if (_vehicle_optical_flow_sub.get_last_generation() != last_generation + 1) {
+			perf_count(_msg_missed_optical_flow_perf);
 		}
 
 		flowSample flow {
-			.time_us = optical_flow.timestamp_sample - optical_flow.integration_timespan_us / 2, // correct timestamp to midpoint of integration interval as the data is converted to rates
-			.flow_rate = flow_rate,
-			.gyro_rate = gyro_rate,
-			.quality = optical_flow.quality
+			.time_us = optical_flow.timestamp_sample,
+			// NOTE: the EKF uses the reverse sign convention to the flow sensor. EKF assumes positive LOS rate
+			// is produced by a RH rotation of the image about the sensor axis.
+			.flow_xy_rad = Vector2f{-optical_flow.pixel_flow[0], -optical_flow.pixel_flow[1]},
+			.gyro_xyz = Vector3f{-optical_flow.delta_angle[0], -optical_flow.delta_angle[1], -optical_flow.delta_angle[2]},
+			.dt = 1e-6f * (float)optical_flow.integration_timespan_us,
+			.quality = optical_flow.quality,
 		};
 
-		if (Vector2f(optical_flow.pixel_flow).isAllFinite() && optical_flow.integration_timespan_us < 1e6) {
+		if (Vector2f(optical_flow.pixel_flow).isAllFinite() && flow.dt < 1) {
 
 			// Save sensor limits reported by the optical flow sensor
 			_ekf.set_optical_flow_limits(optical_flow.max_flow_rate, optical_flow.min_ground_distance,
@@ -2378,14 +2205,12 @@ bool EKF2::UpdateFlowSample(ekf2_timestamps_s &ekf2_timestamps)
 			new_optical_flow = true;
 		}
 
-#if defined(CONFIG_EKF2_RANGE_FINDER)
-
 		// use optical_flow distance as range sample if distance_sensor unavailable
 		if (PX4_ISFINITE(optical_flow.distance_m) && (ekf2_timestamps.timestamp > _last_range_sensor_update + 1_s)) {
 
 			int8_t quality = static_cast<float>(optical_flow.quality) / static_cast<float>(UINT8_MAX) * 100.f;
 
-			estimator::sensor::rangeSample range_sample {
+			rangeSample range_sample {
 				.time_us = optical_flow.timestamp_sample,
 				.rng = optical_flow.distance_m,
 				.quality = quality,
@@ -2396,8 +2221,6 @@ bool EKF2::UpdateFlowSample(ekf2_timestamps_s &ekf2_timestamps)
 			_ekf.set_rangefinder_limits(optical_flow.min_ground_distance, optical_flow.max_ground_distance);
 		}
 
-#endif // CONFIG_EKF2_RANGE_FINDER
-
 		ekf2_timestamps.optical_flow_timestamp_rel = (int16_t)((int64_t)optical_flow.timestamp / 100 -
 				(int64_t)ekf2_timestamps.timestamp / 100);
 	}
@@ -2406,58 +2229,62 @@ bool EKF2::UpdateFlowSample(ekf2_timestamps_s &ekf2_timestamps)
 }
 #endif // CONFIG_EKF2_OPTICAL_FLOW
 
-#if defined(CONFIG_EKF2_GNSS)
 void EKF2::UpdateGpsSample(ekf2_timestamps_s &ekf2_timestamps)
 {
 	// EKF GPS message
+	const unsigned last_generation = _vehicle_gps_position_sub.get_last_generation();
 	sensor_gps_s vehicle_gps_position;
 
 	if (_vehicle_gps_position_sub.update(&vehicle_gps_position)) {
+		if (_msg_missed_gps_perf == nullptr) {
+			_msg_missed_gps_perf = perf_alloc(PC_COUNT, MODULE_NAME": vehicle_gps_position messages missed");
 
-		Vector3f vel_ned;
-
-		if (vehicle_gps_position.vel_ned_valid) {
-			vel_ned = Vector3f(vehicle_gps_position.vel_n_m_s,
-					   vehicle_gps_position.vel_e_m_s,
-					   vehicle_gps_position.vel_d_m_s);
-
-		} else {
-			return; //TODO: change and set to NAN
+		} else if (_vehicle_gps_position_sub.get_last_generation() != last_generation + 1) {
+			perf_count(_msg_missed_gps_perf);
 		}
 
-		gnssSample gnss_sample{
-			.time_us = vehicle_gps_position.timestamp,
-			.lat = vehicle_gps_position.latitude_deg,
-			.lon = vehicle_gps_position.longitude_deg,
-			.alt = static_cast<float>(vehicle_gps_position.altitude_msl_m),
-			.vel = vel_ned,
-			.hacc = vehicle_gps_position.eph,
-			.vacc = vehicle_gps_position.epv,
-			.sacc = vehicle_gps_position.s_variance_m_s,
+		gpsMessage gps_msg{
+			.time_usec = vehicle_gps_position.timestamp,
+			.lat = vehicle_gps_position.lat,
+			.lon = vehicle_gps_position.lon,
+			.alt = vehicle_gps_position.alt,
+			.yaw = vehicle_gps_position.heading,
+			.yaw_offset = vehicle_gps_position.heading_offset,
+			.yaw_accuracy = vehicle_gps_position.heading_accuracy,
 			.fix_type = vehicle_gps_position.fix_type,
+			.eph = vehicle_gps_position.eph,
+			.epv = vehicle_gps_position.epv,
+			.sacc = vehicle_gps_position.s_variance_m_s,
+			.vel_m_s = vehicle_gps_position.vel_m_s,
+			.vel_ned = Vector3f{
+				vehicle_gps_position.vel_n_m_s,
+				vehicle_gps_position.vel_e_m_s,
+				vehicle_gps_position.vel_d_m_s
+			},
+			.vel_ned_valid = vehicle_gps_position.vel_ned_valid,
 			.nsats = vehicle_gps_position.satellites_used,
 			.pdop = sqrtf(vehicle_gps_position.hdop *vehicle_gps_position.hdop
 				      + vehicle_gps_position.vdop * vehicle_gps_position.vdop),
-			.yaw = vehicle_gps_position.heading, //TODO: move to different message
-			.yaw_acc = vehicle_gps_position.heading_accuracy,
-			.yaw_offset = vehicle_gps_position.heading_offset,
-			.spoofed = vehicle_gps_position.spoofing_state == sensor_gps_s::SPOOFING_STATE_MULTIPLE,
 		};
+		_ekf.setGpsData(gps_msg);
 
-		_ekf.setGpsData(gnss_sample);
-
-		_gps_time_usec = gnss_sample.time_us;
-		_gps_alttitude_ellipsoid = static_cast<int32_t>(round(vehicle_gps_position.altitude_ellipsoid_m * 1e3));
+		_gps_time_usec = gps_msg.time_usec;
+		_gps_alttitude_ellipsoid = vehicle_gps_position.alt_ellipsoid;
 	}
 }
-#endif // CONFIG_EKF2_GNSS
 
-#if defined(CONFIG_EKF2_MAGNETOMETER)
 void EKF2::UpdateMagSample(ekf2_timestamps_s &ekf2_timestamps)
 {
+	const unsigned last_generation = _magnetometer_sub.get_last_generation();
 	vehicle_magnetometer_s magnetometer;
 
 	if (_magnetometer_sub.update(&magnetometer)) {
+		if (_msg_missed_magnetometer_perf == nullptr) {
+			_msg_missed_magnetometer_perf = perf_alloc(PC_COUNT, MODULE_NAME": vehicle_magnetometer messages missed");
+
+		} else if (_magnetometer_sub.get_last_generation() != last_generation + 1) {
+			perf_count(_msg_missed_magnetometer_perf);
+		}
 
 		bool reset = false;
 
@@ -2489,7 +2316,6 @@ void EKF2::UpdateMagSample(ekf2_timestamps_s &ekf2_timestamps)
 				(int64_t)ekf2_timestamps.timestamp / 100);
 	}
 }
-#endif // CONFIG_EKF2_MAGNETOMETER
 
 #if defined(CONFIG_EKF2_RANGE_FINDER)
 void EKF2::UpdateRangeSample(ekf2_timestamps_s &ekf2_timestamps)
@@ -2517,6 +2343,7 @@ void EKF2::UpdateRangeSample(ekf2_timestamps_s &ekf2_timestamps)
 
 						_distance_sensor_selected = i;
 						_last_range_sensor_update = distance_sensor.timestamp;
+						_distance_sensor_last_generation = _distance_sensor_subs[_distance_sensor_selected].get_last_generation() - 1;
 						break;
 					}
 				}
@@ -2526,8 +2353,19 @@ void EKF2::UpdateRangeSample(ekf2_timestamps_s &ekf2_timestamps)
 
 	if (_distance_sensor_selected >= 0 && _distance_sensor_subs[_distance_sensor_selected].update(&distance_sensor)) {
 		// EKF range sample
+
+		if (_msg_missed_distance_sensor_perf == nullptr) {
+			_msg_missed_distance_sensor_perf = perf_alloc(PC_COUNT, MODULE_NAME": distance_sensor messages missed");
+
+		} else if (_distance_sensor_subs[_distance_sensor_selected].get_last_generation() != _distance_sensor_last_generation +
+			   1) {
+			perf_count(_msg_missed_distance_sensor_perf);
+		}
+
+		_distance_sensor_last_generation = _distance_sensor_subs[_distance_sensor_selected].get_last_generation();
+
 		if (distance_sensor.orientation == distance_sensor_s::ROTATION_DOWNWARD_FACING) {
-			estimator::sensor::rangeSample range_sample {
+			rangeSample range_sample {
 				.time_us = distance_sensor.timestamp,
 				.rng = distance_sensor.current_distance,
 				.quality = distance_sensor.signal_quality,
@@ -2623,7 +2461,7 @@ void EKF2::UpdateCalibration(const hrt_abstime &timestamp, InFlightCalibration &
 				cal.total_time_us += timestamp - cal.last_us;
 			}
 
-			if (cal.total_time_us > 10_s) {
+			if (cal.total_time_us > 30_s) {
 				cal.cal_available = true;
 			}
 
@@ -2656,7 +2494,8 @@ void EKF2::UpdateAccelCalibration(const hrt_abstime &timestamp)
 				&& (_ekf.fault_status().value == 0)
 				&& !_ekf.fault_status_flags().bad_acc_bias
 				&& !_ekf.fault_status_flags().bad_acc_clipping
-				&& !_ekf.fault_status_flags().bad_acc_vertical;
+				&& !_ekf.fault_status_flags().bad_acc_vertical
+				&& !_ekf.warning_event_flags().invalid_accel_bias_cov_reset;
 
 	const bool learning_valid = bias_valid && !_ekf.accel_bias_inhibited();
 
@@ -2677,25 +2516,22 @@ void EKF2::UpdateGyroCalibration(const hrt_abstime &timestamp)
 			  bias_valid, learning_valid);
 }
 
-#if defined(CONFIG_EKF2_MAGNETOMETER)
 void EKF2::UpdateMagCalibration(const hrt_abstime &timestamp)
 {
-	const Vector3f mag_bias = _ekf.getMagBias();
-	const Vector3f mag_bias_var = _ekf.getMagBiasVariance();
+	const bool bias_valid = (_ekf.control_status_flags().mag_hdg || _ekf.control_status_flags().mag_3D)
+				&& !_ekf.control_status_flags().mag_fault
+				&& !_ekf.control_status_flags().mag_field_disturbed;
 
-	const bool bias_valid = (_ekf.fault_status().value == 0)
-				&& _ekf.control_status_flags().yaw_align
-				&& mag_bias_var.longerThan(0.f) && !mag_bias_var.longerThan(0.02f);
+	const bool learning_valid = bias_valid && _ekf.control_status_flags().mag_3D;
 
-	const bool learning_valid = bias_valid && _ekf.control_status_flags().mag;
-
-	UpdateCalibration(timestamp, _mag_cal, mag_bias, mag_bias_var, _ekf.getMagBiasLimit(), bias_valid, learning_valid);
+	UpdateCalibration(timestamp, _mag_cal, _ekf.getMagBias(), _ekf.getMagBiasVariance(), _ekf.getMagBiasLimit(),
+			  bias_valid, learning_valid);
 
 	// update stored declination value
 	if (!_mag_decl_saved) {
 		float declination_deg;
 
-		if (_ekf.get_mag_decl_deg(declination_deg)) {
+		if (_ekf.get_mag_decl_deg(&declination_deg)) {
 			_param_ekf2_mag_decl.update();
 
 			if (PX4_ISFINITE(declination_deg) && (fabsf(declination_deg - _param_ekf2_mag_decl.get()) > 0.1f)) {
@@ -2707,7 +2543,6 @@ void EKF2::UpdateMagCalibration(const hrt_abstime &timestamp)
 		}
 	}
 }
-#endif // CONFIG_EKF2_MAGNETOMETER
 
 int EKF2::custom_command(int argc, char *argv[])
 {
@@ -2736,18 +2571,16 @@ int EKF2::task_spawn(int argc, char *argv[])
 		// ekf selector requires SENS_IMU_MODE = 0
 		multi_mode = true;
 
-		// IMUs (1 - MAX_NUM_IMUS supported)
+		// IMUs (1 - 4 supported)
 		param_get(param_find("EKF2_MULTI_IMU"), &imu_instances);
 
-		if (imu_instances < 1 || imu_instances > MAX_NUM_IMUS) {
-			const int32_t imu_instances_limited = math::constrain(imu_instances, static_cast<int32_t>(1),
-							      static_cast<int32_t>(MAX_NUM_IMUS));
+		if (imu_instances < 1 || imu_instances > 4) {
+			const int32_t imu_instances_limited = math::constrain(imu_instances, static_cast<int32_t>(1), static_cast<int32_t>(4));
 			PX4_WARN("EKF2_MULTI_IMU limited %" PRId32 " -> %" PRId32, imu_instances, imu_instances_limited);
 			param_set_no_notification(param_find("EKF2_MULTI_IMU"), &imu_instances_limited);
 			imu_instances = imu_instances_limited;
 		}
 
-#if defined(CONFIG_EKF2_MAGNETOMETER)
 		int32_t sens_mag_mode = 1;
 		const param_t param_sens_mag_mode = param_find("SENS_MAG_MODE");
 		param_get(param_sens_mag_mode, &sens_mag_mode);
@@ -2756,10 +2589,9 @@ int EKF2::task_spawn(int argc, char *argv[])
 			const param_t param_ekf2_mult_mag = param_find("EKF2_MULTI_MAG");
 			param_get(param_ekf2_mult_mag, &mag_instances);
 
-			// Mags (1 - MAX_NUM_MAGS supported)
-			if (mag_instances > MAX_NUM_MAGS) {
-				const int32_t mag_instances_limited = math::constrain(mag_instances, static_cast<int32_t>(1),
-								      static_cast<int32_t>(MAX_NUM_MAGS));
+			// Mags (1 - 4 supported)
+			if (mag_instances > 4) {
+				const int32_t mag_instances_limited = math::constrain(mag_instances, static_cast<int32_t>(1), static_cast<int32_t>(4));
 				PX4_WARN("EKF2_MULTI_MAG limited %" PRId32 " -> %" PRId32, mag_instances, mag_instances_limited);
 				param_set_no_notification(param_ekf2_mult_mag, &mag_instances_limited);
 				mag_instances = mag_instances_limited;
@@ -2778,8 +2610,6 @@ int EKF2::task_spawn(int argc, char *argv[])
 		} else {
 			mag_instances = 1;
 		}
-
-#endif // CONFIG_EKF2_MAGNETOMETER
 	}
 
 	if (multi_mode && !replay_mode) {
@@ -2905,11 +2735,7 @@ timestamps from the sensor topics.
 	PRINT_MODULE_USAGE_NAME("ekf2", "estimator");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAM_FLAG('r', "Enable replay mode", true);
-	PRINT_MODULE_USAGE_COMMAND("stop");
-	PRINT_MODULE_USAGE_COMMAND_DESCR("status", "print status info");
-#if defined(CONFIG_EKF2_VERBOSE_STATUS)
-	PRINT_MODULE_USAGE_ARG("-v", "verbose (print all states and full covariance matrix)", true);
-#endif // CONFIG_EKF2_VERBOSE_STATUS
+	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 #if defined(CONFIG_EKF2_MULTI_INSTANCE)
 	PRINT_MODULE_USAGE_COMMAND_DESCR("select_instance", "Request switch to new estimator instance");
 	PRINT_MODULE_USAGE_ARG("<instance>", "Specify desired estimator instance", false);
@@ -2969,18 +2795,10 @@ extern "C" __EXPORT int ekf2_main(int argc, char *argv[])
 			}
 #endif // CONFIG_EKF2_MULTI_INSTANCE
 
-			bool verbose_status = false;
-
-#if defined(CONFIG_EKF2_VERBOSE_STATUS)
-			if (argc > 2 && (strcmp(argv[2], "-v") == 0)) {
-				verbose_status = true;
-			}
-#endif // CONFIG_EKF2_VERBOSE_STATUS
-
 			for (int i = 0; i < EKF2_MAX_INSTANCES; i++) {
 				if (_objects[i].load()) {
 					PX4_INFO_RAW("\n");
-					_objects[i].load()->print_status(verbose_status);
+					_objects[i].load()->print_status();
 				}
 			}
 

@@ -33,7 +33,6 @@
 
 #include <gtest/gtest.h>
 #include <matrix/filter.hpp>
-#include <matrix/Vector.hpp>
 
 using namespace matrix;
 

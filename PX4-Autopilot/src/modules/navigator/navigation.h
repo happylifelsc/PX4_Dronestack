@@ -104,7 +104,6 @@ enum NAV_CMD {
 	NAV_CMD_FENCE_POLYGON_VERTEX_EXCLUSION = 5002,
 	NAV_CMD_FENCE_CIRCLE_INCLUSION = 5003,
 	NAV_CMD_FENCE_CIRCLE_EXCLUSION = 5004,
-	NAV_CMD_RALLY_POINT = 5100,
 	NAV_CMD_CONDITION_GATE = 4501,
 	NAV_CMD_DO_WINCH = 42600,
 	NAV_CMD_INVALID = UINT16_MAX /* ensure that casting a large number results in a specific error */
@@ -200,18 +199,16 @@ struct mission_item_s {
 
 /**
  * dataman housekeeping information for a specific item.
- * Corresponds to the dataman entry of DM_KEY_FENCE_POINTS_STATE and DM_KEY_SAFE_POINTS_STATE
+ * Corresponds to the first dataman entry of DM_KEY_FENCE_POINTS and DM_KEY_SAFE_POINTS
  */
 struct mission_stats_entry_s {
-	uint32_t opaque_id;			/**< opaque identifier for current stored mission stats */
 	uint16_t num_items;			/**< total number of items stored (excluding this one) */
-	uint8_t dataman_id;			/**< dm_item_t storage place*/
-	uint8_t padding[1];
+	uint16_t update_counter;			/**< This counter is increased when (some) items change (this can wrap) */
 };
 
 /**
  * Geofence vertex point.
- * Corresponds to the DM_KEY_FENCE_POINTS_0 dataman item
+ * Corresponds to the DM_KEY_FENCE_POINTS dataman item
  */
 struct mission_fence_point_s {
 	double lat;
@@ -230,28 +227,17 @@ struct mission_fence_point_s {
 };
 
 /**
- * @brief Position and yaw setpoint struct.
- * Used in RTL state machine.
- *
+ * Safe Point (Rally Point).
+ * Corresponds to the DM_KEY_SAFE_POINTS dataman item
  */
-struct PositionYawSetpoint {
-	double lat;	/**< latitude setpoint in WGS84 [rad].*/
-	double lon;	/**< longitude setpoint in WGS84 [rad].*/
-	float alt;	/**< altitude setpoint in MSL [m].*/
-	float yaw;	/**< yaw setpoint [rad].*/
+struct mission_safe_point_s {
+	double lat;
+	double lon;
+	float alt;
+	uint8_t frame;					/**< MAV_FRAME */
+
+	uint8_t _padding0[3];				/**< padding struct size to alignment boundary  */
 };
-
-
-/**
- * Crc32 mission item struct.
- * Used to pack relevant mission item ifnromation for us in crc32 mission calculation.
- */
-typedef struct __attribute__((packed)) CrcMissionItem {
-	uint8_t frame;
-	uint16_t command;
-	uint8_t autocontinue;
-	float params[7];
-} CrcMissionItem_t;
 
 #if (__GNUC__ >= 5) || __clang__
 #pragma GCC diagnostic pop

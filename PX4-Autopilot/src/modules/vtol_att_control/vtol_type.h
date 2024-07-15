@@ -237,32 +237,20 @@ public:
 	*/
 	float getOpenLoopFrontTransitionTime() const;
 
-	/**
-	 *
-	 * @return The calibrated blending airspeed [m/s]
-	 */
-	float getBlendAirspeed() const;
-
-	/**
-	 *
-	 * @return The calibrated transition airspeed [m/s]
-	 */
-	float getTransitionAirspeed() const;
-
 	virtual void parameters_update() = 0;
 
+	/**
+	 * @brief Set current time delta
+	 *
+	 * @param dt Current time delta [s]
+	 */
+	void setDt(float dt) {_dt = dt; }
 
 	/**
 	 * @brief Resets the transition timer states.
 	 *
 	 */
 	void resetTransitionStates();
-
-	/**
-	 * @brief Handle EKF position resets.
-	 *
-	 */
-	void handleEkfResets();
 
 protected:
 	VtolAttitudeControl *_attc;
@@ -299,7 +287,6 @@ protected:
 	// motors spinning up or cutting too fast when doing transitions.
 	float _thrust_transition = 0.0f;	// thrust value applied during a front transition (tailsitter & tiltrotor only)
 	float _last_thr_in_fw_mode = 0.0f;
-	float _last_thr_in_mc = 0.f;
 
 	hrt_abstime _trans_finished_ts = 0;
 	hrt_abstime _transition_start_timestamp{0};
@@ -311,7 +298,7 @@ protected:
 	hrt_abstime _last_loop_ts = 0;
 	float _transition_dt = 0;
 
-	float _quadchute_ref_alt{NAN};	// altitude (AMSL) reference to compute quad-chute altitude loss condition
+	float _quadchute_ref_alt{-MAXFLOAT};	// altitude (AMSL) reference to compute quad-chute altitude loss condition
 
 	float _accel_to_pitch_integ = 0;
 
@@ -321,9 +308,9 @@ protected:
 	bool isFrontTransitionCompleted();
 	virtual bool isFrontTransitionCompletedBase();
 
-	float _local_position_z_start_of_transition{0.f}; // altitude at start of transition
+	float _dt{0.0025f}; // time step [s]
 
-	int _altitude_reset_counter{0};
+	float _local_position_z_start_of_transition{0.f}; // altitude at start of transition
 
 	DEFINE_PARAMETERS_CUSTOM_PARENT(ModuleParams,
 					(ParamBool<px4::params::VT_ELEV_MC_LOCK>) _param_vt_elev_mc_lock,
@@ -341,13 +328,14 @@ protected:
 					(ParamFloat<px4::params::VT_ARSP_TRANS>) _param_vt_arsp_trans,
 					(ParamFloat<px4::params::VT_F_TRANS_THR>) _param_vt_f_trans_thr,
 					(ParamFloat<px4::params::VT_ARSP_BLEND>) _param_vt_arsp_blend,
-					(ParamBool<px4::params::FW_USE_AIRSPD>) _param_fw_use_airspd,
+					(ParamBool<px4::params::FW_ARSP_MODE>) _param_fw_arsp_mode,
 					(ParamFloat<px4::params::VT_TRANS_TIMEOUT>) _param_vt_trans_timeout,
 					(ParamFloat<px4::params::MPC_XY_CRUISE>) _param_mpc_xy_cruise,
 					(ParamInt<px4::params::VT_FW_DIFTHR_EN>) _param_vt_fw_difthr_en,
 					(ParamFloat<px4::params::VT_FW_DIFTHR_S_Y>) _param_vt_fw_difthr_s_y,
 					(ParamFloat<px4::params::VT_FW_DIFTHR_S_P>) _param_vt_fw_difthr_s_p,
 					(ParamFloat<px4::params::VT_FW_DIFTHR_S_R>) _param_vt_fw_difthr_s_r,
+					(ParamFloat<px4::params::VT_B_DEC_FF>) _param_vt_b_dec_ff,
 					(ParamFloat<px4::params::VT_B_DEC_I>) _param_vt_b_dec_i,
 					(ParamFloat<px4::params::VT_B_DEC_MSS>) _param_vt_b_dec_mss,
 
@@ -356,10 +344,7 @@ protected:
 					(ParamInt<px4::params::VT_FWD_THRUST_EN>) _param_vt_fwd_thrust_en,
 					(ParamFloat<px4::params::MPC_LAND_ALT1>) _param_mpc_land_alt1,
 					(ParamFloat<px4::params::MPC_LAND_ALT2>) _param_mpc_land_alt2,
-					(ParamFloat<px4::params::VT_LND_PITCH_MIN>) _param_vt_lnd_pitch_min,
-					(ParamFloat<px4::params::WEIGHT_BASE>) _param_weight_base,
-					(ParamFloat<px4::params::WEIGHT_GROSS>) _param_weight_gross
-
+					(ParamFloat<px4::params::VT_LND_PITCH_MIN>) _param_vt_lnd_pitch_min
 				       )
 
 private:

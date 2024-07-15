@@ -2,8 +2,7 @@
 
 add_library(px4_layer
 		${KERNEL_SRCS}
-		${PX4_SOURCE_DIR}/platforms/common/Serial.cpp
-		SerialImpl.cpp
+		cdc_acm_check.cpp
 	)
 
 target_link_libraries(px4_layer

@@ -40,16 +40,6 @@
  */
 
 /**
- * standalone attitude estimator enable (unsupported)
- *
- * Enable standalone quaternion based attitude estimator.
- *
- * @group Attitude Q estimator
- * @boolean
- */
-PARAM_DEFINE_INT32(ATT_EN, 0);
-
-/**
  * Complimentary filter accelerometer weight
  *
  * @group Attitude Q estimator
@@ -132,7 +122,7 @@ PARAM_DEFINE_INT32(ATT_EXT_HDG_M, 0);
  * @group Attitude Q estimator
  * @boolean
  */
-PARAM_DEFINE_INT32(ATT_ACC_COMP, 0);
+PARAM_DEFINE_INT32(ATT_ACC_COMP, 1);
 
 /**
  * Gyro bias limit

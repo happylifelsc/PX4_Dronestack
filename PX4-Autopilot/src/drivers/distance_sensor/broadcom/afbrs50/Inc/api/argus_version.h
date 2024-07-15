@@ -1,11 +1,11 @@
 /*************************************************************************//**
  * @file
- * @brief       This file is part of the AFBR-S50 API.
- * @details     This file contains the current API version number.
+ * @brief    	This file is part of the AFBR-S50 API.
+ * @details		This file contains the current API version number.
  *
  * @copyright
  *
- * Copyright (c) 2023, Broadcom Inc.
+ * Copyright (c) 2021, Broadcom Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,19 +36,16 @@
 
 #ifndef ARGUS_VERSION_H
 #define ARGUS_VERSION_H
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*!***************************************************************************
- * @defgroup    argus_version API Version
- * @ingroup     argus_api
+ * @defgroup	version API Version
+ * @ingroup		argusapi
  *
- * @brief       API and library core version number
+ * @brief		API and library core version number
  *
- * @details     Contains the AFBR-S50 API and Library Core Version Number.
+ * @details		Contains the AFBR-S50 API and Library Core Version Number.
  *
- * @addtogroup  argus_version
+ * @addtogroup 	version
  * @{
  *****************************************************************************/
 
@@ -56,13 +53,13 @@ extern "C" {
 #define ARGUS_API_VERSION_MAJOR    1
 
 /*! Minor version number of the AFBR-S50 API. */
-#define ARGUS_API_VERSION_MINOR    5
+#define ARGUS_API_VERSION_MINOR    3
 
 /*! Bugfix version number of the AFBR-S50 API. */
-#define ARGUS_API_VERSION_BUGFIX   6
+#define ARGUS_API_VERSION_BUGFIX   5
 
-/*! Build version number of the AFBR-S50 API. */
-#define ARGUS_API_VERSION_BUILD    "20240208081753"
+/*! Build version nunber of the AFBR-S50 API. */
+#define ARGUS_API_VERSION_BUILD    "20210812171515"
 
 /*****************************************************************************/
 
@@ -76,7 +73,4 @@ extern "C" {
 				       (ARGUS_API_VERSION_BUGFIX))
 
 /*! @} */
-#ifdef __cplusplus
-} // extern "C"
-#endif
 #endif /* ARGUS_VERSION_H */

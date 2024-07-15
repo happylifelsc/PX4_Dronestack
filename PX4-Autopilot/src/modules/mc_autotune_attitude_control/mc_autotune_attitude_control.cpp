@@ -68,7 +68,6 @@ bool McAutotuneAttitudeControl::init()
 
 void McAutotuneAttitudeControl::reset()
 {
-	_param_mc_at_start.reset();
 }
 
 void McAutotuneAttitudeControl::Run()

@@ -4,6 +4,7 @@ serial_config:
     port_config_param:
       name: UWB_PORT_CFG
       group: UWB
+      default: "TEL2"
 
 parameters:
     - group: UWB

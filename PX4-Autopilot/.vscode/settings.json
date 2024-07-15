@@ -15,7 +15,6 @@
         "cmake.buildDirectory": "${workspaceFolder}/build/${variant:CONFIG}",
         "cmake.configureOnOpen": true,
         "cmake.ctest.parallelJobs": 1,
-        "cmake.options.statusBarVisibility": "compact",
         "cmake.skipConfigureIfCachePresent": true,
         "cmakeExplorer.buildDir": "${workspaceFolder}/build/px4_sitl_test",
         "cmakeExplorer.parallelJobs": 1,
@@ -128,6 +127,5 @@
         "terminal.integrated.scrollback": 15000,
         "yaml.schemas": {
                 "${workspaceFolder}/validation/module_schema.yaml": "${workspaceFolder}/src/modules/*/module.yaml"
-        },
-        "ros.distro": "humble"
+        }
 }

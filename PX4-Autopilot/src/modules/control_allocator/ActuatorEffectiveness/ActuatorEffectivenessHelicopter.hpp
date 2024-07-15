@@ -66,7 +66,7 @@ public:
 		float spoolup_time;
 	};
 
-	ActuatorEffectivenessHelicopter(ModuleParams *parent, ActuatorType tail_actuator_type);
+	ActuatorEffectivenessHelicopter(ModuleParams *parent);
 	virtual ~ActuatorEffectivenessHelicopter() = default;
 
 	bool getEffectivenessMatrix(Configuration &configuration, EffectivenessUpdateReason external_update) override;
@@ -129,6 +129,4 @@ private:
 
 	uORB::Subscription _manual_control_switches_sub{ORB_ID(manual_control_switches)};
 	bool _main_motor_engaged{true};
-
-	const ActuatorType _tail_actuator_type;
 };

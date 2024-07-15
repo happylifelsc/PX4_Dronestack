@@ -290,11 +290,6 @@ inline bool isFinite(const float &value)
 	return PX4_ISFINITE(value);
 }
 
-inline bool isFinite(const matrix::Vector2f &value)
-{
-	return value.isAllFinite();
-}
-
 inline bool isFinite(const matrix::Vector3f &value)
 {
 	return value.isAllFinite();

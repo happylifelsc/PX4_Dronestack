@@ -90,8 +90,8 @@ bool GHSTTelemetry::send_battery_status()
 	battery_status_s battery_status;
 
 	if (_battery_status_sub.update(&battery_status)) {
-		voltage_in_10mV = battery_status.voltage_v * FACTOR_VOLTS_TO_10MV;
-		current_in_10mA = battery_status.current_a * FACTOR_AMPS_TO_10MA;
+		voltage_in_10mV = battery_status.voltage_filtered_v * FACTOR_VOLTS_TO_10MV;
+		current_in_10mA = battery_status.current_filtered_a * FACTOR_AMPS_TO_10MA;
 		fuel_in_10mAh = battery_status.discharged_mah * FACTOR_MAH_TO_10MAH;
 		success = ghst_send_telemetry_battery_status(_uart_fd,
 				static_cast<uint16_t>(voltage_in_10mV),
@@ -110,9 +110,9 @@ bool GHSTTelemetry::send_gps1_status()
 		return false;
 	}
 
-	int32_t latitude = static_cast<int32_t>(round(vehicle_gps_position.latitude_deg * 1e7));        // 1e-7 degrees
-	int32_t longitude = static_cast<int32_t>(round(vehicle_gps_position.longitude_deg * 1e7));      // 1e-7 degrees
-	uint16_t altitude = static_cast<int16_t>(round(vehicle_gps_position.altitude_msl_m));           // meters
+	int32_t latitude = vehicle_gps_position.lat;				// 1e-7 degrees
+	int32_t longitude = vehicle_gps_position.lon;				// 1e-7 degrees
+	uint16_t altitude = vehicle_gps_position.alt / 1000;			// mm -> m
 
 	return ghst_send_telemetry_gps1_status(_uart_fd, latitude, longitude, altitude);
 }

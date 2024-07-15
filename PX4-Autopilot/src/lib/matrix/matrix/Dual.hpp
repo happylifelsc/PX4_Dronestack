@@ -15,11 +15,13 @@
 
 #include <cmath>
 
-#include "Scalar.hpp"
-#include "Vector.hpp"
+#include "math.hpp"
 
 namespace matrix
 {
+
+template <typename Type, size_t M>
+class Vector;
 
 template <typename Scalar, size_t N>
 struct Dual {

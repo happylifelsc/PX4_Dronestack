@@ -45,8 +45,6 @@ static constexpr int kHomePositionGPSRequiredFixType = 2;
 static constexpr float kHomePositionGPSRequiredEPH = 5.f;
 static constexpr float kHomePositionGPSRequiredEPV = 10.f;
 static constexpr float kHomePositionGPSRequiredEVH = 1.f;
-static constexpr float kMinHomePositionChangeEPH = 1.f;
-static constexpr float kMinHomePositionChangeEPV = 1.5f;
 
 class HomePosition
 {
@@ -70,7 +68,7 @@ private:
 	static void fillLocalHomePos(home_position_s &home, const vehicle_local_position_s &lpos);
 	static void fillLocalHomePos(home_position_s &home, float x, float y, float z, float heading);
 	static void fillGlobalHomePos(home_position_s &home, const vehicle_global_position_s &gpos);
-	static void fillGlobalHomePos(home_position_s &home, double lat, double lon, double alt);
+	static void fillGlobalHomePos(home_position_s &home, double lat, double lon, float alt);
 
 	uORB::Subscription					_vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
 
@@ -85,7 +83,7 @@ private:
 	bool							_gps_position_for_home_valid{false};
 	double							_gps_lat{0};
 	double							_gps_lon{0};
-	double							_gps_alt{0};
+	float							_gps_alt{0.f};
 	float							_gps_eph{0.f};
 	float							_gps_epv{0.f};
 };

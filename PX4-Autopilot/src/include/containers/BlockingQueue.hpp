@@ -46,8 +46,6 @@ public:
 	{
 		px4_sem_init(&_sem_head, 0, N);
 		px4_sem_init(&_sem_tail, 0, 0);
-		px4_sem_setprotocol(&_sem_head, SEM_PRIO_NONE);
-		px4_sem_setprotocol(&_sem_tail, SEM_PRIO_NONE);
 	}
 
 	~BlockingQueue()
@@ -58,7 +56,7 @@ public:
 
 	void push(T newItem)
 	{
-		do {} while (px4_sem_wait(&_sem_head) != 0);
+		px4_sem_wait(&_sem_head);
 
 		_data[_tail] = newItem;
 		_tail = (_tail + 1) % N;
@@ -68,7 +66,7 @@ public:
 
 	T pop()
 	{
-		do {} while (px4_sem_wait(&_sem_tail) != 0);
+		px4_sem_wait(&_sem_tail);
 
 		T ret = _data[_head];
 		_head = (_head + 1) % N;

@@ -168,7 +168,12 @@ void VelocitySmoothing::updateDurations(float vel_setpoint)
 
 	_direction = computeDirection();
 
-	updateDurationsMinimizeTotalTime();
+	if (_direction != 0) {
+		updateDurationsMinimizeTotalTime();
+
+	} else {
+		_T1 = _T2 = _T3 = 0.f;
+	}
 }
 
 int VelocitySmoothing::computeDirection() const
@@ -182,7 +187,7 @@ int VelocitySmoothing::computeDirection() const
 
 	if (direction == 0) {
 		// If by braking immediately the velocity is exactly
-		// the required one with zero acceleration, then brake
+		// the require one with zero acceleration, then brake
 		direction = sign(_state.a);
 	}
 
@@ -207,19 +212,14 @@ void VelocitySmoothing::updateDurationsMinimizeTotalTime()
 	float jerk_max_T1 = _direction * _max_jerk;
 	float delta_v = _vel_sp - _state.v;
 
-	if (fabsf(jerk_max_T1) > FLT_EPSILON) { // zero direction or jerk would lead to division by zero
-		// compute increasing acceleration time
-		_T1 = computeT1(_state.a, delta_v, jerk_max_T1, _max_accel);
+	// compute increasing acceleration time
+	_T1 = computeT1(_state.a, delta_v, jerk_max_T1, _max_accel);
 
-		// compute decreasing acceleration time
-		_T3 = computeT3(_T1, _state.a, jerk_max_T1);
+	// compute decreasing acceleration time
+	_T3 = computeT3(_T1, _state.a, jerk_max_T1);
 
-		// compute constant acceleration time
-		_T2 = computeT2(_T1, _T3, _state.a, delta_v, jerk_max_T1);
-
-	} else {
-		_T1 = _T2 = _T3 = 0.f;
-	}
+	// compute constant acceleration time
+	_T2 = computeT2(_T1, _T3, _state.a, delta_v, jerk_max_T1);
 }
 
 Trajectory VelocitySmoothing::evaluatePoly(float j, float a0, float v0, float x0, float t, int d) const
@@ -292,17 +292,12 @@ void VelocitySmoothing::updateDurationsGivenTotalTime(float T123)
 	float jerk_max_T1 = _direction * _max_jerk;
 	float delta_v = _vel_sp - _state.v;
 
-	if (fabsf(jerk_max_T1) > FLT_EPSILON) { // zero direction or jerk would lead to division by zero
-		// compute increasing acceleration time
-		_T1 = computeT1(T123, _state.a, delta_v, jerk_max_T1, _max_accel);
+	// compute increasing acceleration time
+	_T1 = computeT1(T123, _state.a, delta_v, jerk_max_T1, _max_accel);
 
-		// compute decreasing acceleration time
-		_T3 = computeT3(_T1, _state.a, jerk_max_T1);
+	// compute decreasing acceleration time
+	_T3 = computeT3(_T1, _state.a, jerk_max_T1);
 
-		// compute constant acceleration time
-		_T2 = computeT2(T123, _T1, _T3);
-
-	} else {
-		_T1 = _T2 = _T3 = 0.f;
-	}
+	// compute constant acceleration time
+	_T2 = computeT2(T123, _T1, _T3);
 }

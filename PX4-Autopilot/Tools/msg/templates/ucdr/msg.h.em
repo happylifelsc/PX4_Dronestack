@@ -124,9 +124,8 @@ static inline constexpr int ucdr_topic_size_@(topic)()
 	return @(struct_size);
 }
 
-static inline bool ucdr_serialize_@(topic)(const void* data, ucdrBuffer& buf, int64_t time_offset = 0)
+bool ucdr_serialize_@(topic)(const @(uorb_struct)& topic, ucdrBuffer& buf, int64_t time_offset = 0)
 {
-	const @(uorb_struct)& topic = *static_cast<const @(uorb_struct)*>(data);
 @{
 for field_type, field_name, field_size, padding in fields:
 	if padding > 0:
@@ -153,7 +152,7 @@ for field_type, field_name, field_size, padding in fields:
 	return true;
 }
 
-static inline bool ucdr_deserialize_@(topic)(ucdrBuffer& buf, @(uorb_struct)& topic, int64_t time_offset = 0)
+bool ucdr_deserialize_@(topic)(ucdrBuffer& buf, @(uorb_struct)& topic, int64_t time_offset = 0)
 {
 @{
 for field_type, field_name, field_size, padding in fields:

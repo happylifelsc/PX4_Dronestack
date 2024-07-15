@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020-2023 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,7 +39,7 @@
 
 class Geofence;
 
-#define GEOFENCE_CHECK_INTERVAL_US 200000 // 0.2s
+#define GEOFENCE_CHECK_INTERVAL_US 200000
 
 union geofence_violation_type_u {
 	struct {
@@ -95,6 +95,8 @@ public:
 
 	void setMaxHorDistHome(float dist) { _max_hor_dist_home = dist; }
 
+	void setMaxVerDistHome(float dist) { _max_ver_dist_home = dist; }
+
 	void updateParameters();
 
 private:
@@ -132,8 +134,10 @@ private:
 
 	matrix::Vector2<double> _current_pos_lat_lon{};
 	matrix::Vector2<double> _home_lat_lon {};
+	float _home_alt_amsl{0.0f};
 
 	float _max_hor_dist_home{0.0f};
+	float _max_ver_dist_home{0.0f};
 
 	void updateMinHorDistToFenceMultirotor();
 

@@ -42,5 +42,4 @@ px4_add_module(
 		drivers_magnetometer
 		geo
 		px4_work_queue
-		world_magnetic_model
 )

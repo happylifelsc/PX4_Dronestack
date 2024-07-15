@@ -131,9 +131,9 @@ public:
 	void setControlSetpoint(const matrix::Vector<float, NUM_AXES> &control) { _control_sp = control; }
 
 	/**
-	 * Get the desired control vector
+	 * Set the desired control vector
 	 *
-	 * @return Control vector
+	 * @param Control vector
 	 */
 	const matrix::Vector<float, NUM_AXES> &getControlSetpoint() const { return _control_sp; }
 

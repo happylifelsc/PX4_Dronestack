@@ -44,6 +44,8 @@
 #include <uORB/uORB.h>
 #include <sys/boardctl.h>
 
+extern void cdcacm_init(void);
+
 extern "C" void px4_userspace_init(void)
 {
 	hrt_init();
@@ -53,4 +55,8 @@ extern "C" void px4_userspace_init(void)
 	px4::WorkQueueManagerStart();
 
 	uorb_start();
+
+#if defined(CONFIG_SYSTEM_CDCACM)
+	cdcacm_init();
+#endif
 }

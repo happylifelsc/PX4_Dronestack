@@ -218,4 +218,5 @@ void PCF8583::print_status()
 	PX4_INFO("Last reset %.3fs ago, Count of resets: %d", (double)(hrt_absolute_time() - _last_reset_time) / 1000000.0,
 		 _reset_count);
 	PX4_INFO("Last count %ld", _count);
+	PX4_INFO("RPM instance: %d", _rpm_pub.get_instance());
 }

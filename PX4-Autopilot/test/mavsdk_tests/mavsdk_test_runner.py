@@ -7,7 +7,6 @@ import json
 import math
 import os
 import psutil  # type: ignore
-import re
 import signal
 import subprocess
 import sys
@@ -403,13 +402,6 @@ class Tester:
 
         if self.config['mode'] == 'sitl':
             if self.config['simulator'] == 'gazebo':
-                # Use RegEx to extract worldname.world from case name
-                match = re.search(r'\((.*?\.world)\)', case)
-                if match:
-                    world_name = match.group(1)
-                else:
-                    world_name = 'empty.world'
-
                 gzserver_runner = ph.GzserverRunner(
                     os.getcwd(),
                     log_dir,
@@ -417,8 +409,7 @@ class Tester:
                     case,
                     self.get_max_speed_factor(test),
                     self.verbose,
-                    self.build_dir,
-                    world_name)
+                    self.build_dir)
                 self.active_runners.append(gzserver_runner)
 
                 gzmodelspawn_runner = ph.GzmodelspawnRunner(
@@ -453,8 +444,6 @@ class Tester:
                     self.debugger,
                     self.verbose,
                     self.build_dir)
-                for env_key in test.get('env', []):
-                    px4_runner.env[env_key] = str(test['env'][env_key])
                 self.active_runners.append(px4_runner)
 
         mavsdk_tests_runner = ph.TestRunner(

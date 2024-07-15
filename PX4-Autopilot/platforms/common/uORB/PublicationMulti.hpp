@@ -51,7 +51,7 @@ namespace uORB
 /**
  * Base publication multi wrapper class
  */
-template<typename T>
+template<typename T, uint8_t QSIZE = DefaultQueueSize<T>::value>
 class PublicationMulti : public PublicationBase
 {
 public:
@@ -73,7 +73,7 @@ public:
 	{
 		if (!advertised()) {
 			int instance = 0;
-			_handle = orb_advertise_multi(get_topic(), nullptr, &instance);
+			_handle = orb_advertise_multi_queue(get_topic(), nullptr, &instance, QSIZE);
 		}
 
 		return advertised();

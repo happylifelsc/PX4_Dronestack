@@ -38,7 +38,6 @@
  */
 
 #include <px4_platform_common/px4_config.h>
-#include <px4_platform_common/shutdown.h>
 #include <systemlib/px4_macros.h>
 #include <errno.h>
 #include <stm32_pwr.h>
@@ -118,7 +117,7 @@ int board_configure_reset(reset_mode_e mode, uint32_t arg)
 
 int board_reset(int status)
 {
-	if (status == REBOOT_TO_BOOTLOADER) {
+	if (status == 1) {
 		board_configure_reset(BOARD_RESET_MODE_BOOT_TO_BL, 0);
 	}
 

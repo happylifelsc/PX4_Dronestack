@@ -11,10 +11,6 @@
 #include "vn/util/export.h"
 #include "vn/types.h"
 
-#ifndef UNUSED
-#define UNUSED(x) (void)(sizeof(x))
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -47,7 +47,8 @@
 #include <lib/drivers/smbus/SMBus.hpp>
 #include <uORB/topics/battery_status.h>
 #include <px4_platform_common/param.h>
-#include <lib/atmosphere/atmosphere.h>
+#include <geo/geo.h>
+
 
 using namespace time_literals;
 
@@ -261,11 +262,13 @@ int SMBUS_SBS_BaseClass<T>::populate_smbus_data(battery_status_s &data)
 
 	// Convert millivolts to volts.
 	data.voltage_v = ((float)result) * 0.001f;
+	data.voltage_filtered_v = data.voltage_v;
 
 	// Read current.
 	ret |= _interface->read_word(BATT_SMBUS_CURRENT, result);
 
 	data.current_a = (-1.0f * ((float)(*(int16_t *)&result)) * 0.001f);
+	data.current_filtered_a = data.current_a;
 
 	// Read remaining capacity.
 	ret |= _interface->read_word(BATT_SMBUS_RELATIVE_SOC, result);
@@ -289,7 +292,7 @@ int SMBUS_SBS_BaseClass<T>::populate_smbus_data(battery_status_s &data)
 
 	// Read battery temperature and covert to Celsius.
 	ret |= _interface->read_word(BATT_SMBUS_TEMP, result);
-	data.temperature = ((float)result * 0.1f) + atmosphere::kAbsoluteNullCelsius;
+	data.temperature = ((float)result * 0.1f) + CONSTANTS_ABSOLUTE_NULL_CELSIUS;
 
 	return ret;
 

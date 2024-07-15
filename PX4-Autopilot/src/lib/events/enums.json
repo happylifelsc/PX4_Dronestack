@@ -110,38 +110,6 @@
                         "4194304": {
                             "name": "vtol_takeoff",
                             "description": "VTOL Takeoff"
-                        },
-                        "8388608": {
-                            "name": "external1",
-                            "description": "External 1"
-                        },
-                        "16777216": {
-                            "name": "external2",
-                            "description": "External 2"
-                        },
-                        "33554432": {
-                            "name": "external3",
-                            "description": "External 3"
-                        },
-                        "67108864": {
-                            "name": "external4",
-                            "description": "External 4"
-                        },
-                        "134217728": {
-                            "name": "external5",
-                            "description": "External 5"
-                        },
-                        "268435456": {
-                            "name": "external6",
-                            "description": "External 6"
-                        },
-                        "536870912": {
-                            "name": "external7",
-                            "description": "External 7"
-                        },
-                        "1073741824": {
-                            "name": "external8",
-                            "description": "External 8"
                         }
                     }
                 },
@@ -272,10 +240,6 @@
                         "536870912": {
                             "name": "gyro",
                             "description": "Gyroscope"
-                        },
-                        "1073741824": {
-                            "name": "open_drone_id",
-                            "description": "Open Drone ID system"
                         }
                     }
                 },
@@ -364,7 +328,7 @@
                         },
                         "1": {
                             "name": "manual_control_loss",
-                            "description": "Manual control loss"
+                            "description": "manual control loss"
                         },
                         "2": {
                             "name": "gcs_connection_loss",
@@ -372,19 +336,15 @@
                         },
                         "3": {
                             "name": "low_battery_level",
-                            "description": "Low battery level"
+                            "description": "low battery level"
                         },
                         "4": {
                             "name": "critical_battery_level",
-                            "description": "Critical battery level"
+                            "description": "critical battery level"
                         },
                         "5": {
                             "name": "emergency_battery_level",
-                            "description": "Emergency battery level"
-                        },
-                        "6": {
-                            "name": "low_remaining_flight_time",
-                            "description": "Remaining flight time low"
+                            "description": "emergency battery level"
                         }
                     }
                 },
@@ -402,19 +362,19 @@
                         },
                         "2": {
                             "name": "fallback_posctrl",
-                            "description": "Position mode"
+                            "description": "fallback to position control"
                         },
                         "3": {
                             "name": "fallback_altctrl",
-                            "description": "Altitude mode"
+                            "description": "fallback to altitude control"
                         },
                         "4": {
                             "name": "fallback_stabilized",
-                            "description": "Stabilized mode"
+                            "description": "fallback to stabilized"
                         },
                         "5": {
                             "name": "hold",
-                            "description": "Hold"
+                            "description": "hold"
                         },
                         "6": {
                             "name": "rtl",
@@ -422,11 +382,11 @@
                         },
                         "7": {
                             "name": "land",
-                            "description": "Land"
+                            "description": "land"
                         },
                         "8": {
                             "name": "descend",
-                            "description": "Descend"
+                            "description": "descend"
                         },
                         "9": {
                             "name": "disarm",
@@ -544,10 +504,6 @@
                             "name": "stab",
                             "description": "Stabilized"
                         },
-                        "9": {
-                            "name": "position_slow",
-                            "description": "Position Slow"
-                        },
                         "10": {
                             "name": "auto_takeoff",
                             "description": "Takeoff"
@@ -571,38 +527,6 @@
                         "15": {
                             "name": "auto_vtol_takeoff",
                             "description": "Vtol Takeoff"
-                        },
-                        "16": {
-                            "name": "external1",
-                            "description": "External 1"
-                        },
-                        "17": {
-                            "name": "external2",
-                            "description": "External 2"
-                        },
-                        "18": {
-                            "name": "external3",
-                            "description": "External 3"
-                        },
-                        "19": {
-                            "name": "external4",
-                            "description": "External 4"
-                        },
-                        "20": {
-                            "name": "external5",
-                            "description": "External 5"
-                        },
-                        "21": {
-                            "name": "external6",
-                            "description": "External 6"
-                        },
-                        "22": {
-                            "name": "external7",
-                            "description": "External 7"
-                        },
-                        "23": {
-                            "name": "external8",
-                            "description": "External 8"
                         },
                         "255": {
                             "name": "unknown",
@@ -741,6 +665,24 @@
                             "description": "Reduce throttle!"
                         }
                     }
+                },
+                "geofence_violation_reason_t": {
+                    "type": "uint8_t",
+                    "description": "Reason for geofence violation",
+                    "entries": {
+                        "0": {
+                            "name": "dist_to_home_exceeded",
+                            "description": "maximum distance to home exceeded"
+                        },
+                        "1": {
+                            "name": "max_altitude_exceeded",
+                            "description": "maximum altitude exceeded"
+                        },
+                        "2": {
+                            "name": "fence_violation",
+                            "description": "approaching or outside geofence"
+                        }
+                    }
                 }
             },
             "navigation_mode_groups": {
@@ -759,15 +701,7 @@
                     "19": [134479872],
                     "20": [151257088],
                     "21": [16973824],
-                    "22": [168034304],
-                    "23": [184811520],
-                    "24": [201588736],
-                    "25": [218365952],
-                    "26": [235143168],
-                    "27": [251920384],
-                    "28": [268697600],
-                    "29": [285474816],
-                    "30": [302252032]
+                    "22": [168034304]
                 }
             },
             "supported_protocols": [ "health_and_arming_check" ]

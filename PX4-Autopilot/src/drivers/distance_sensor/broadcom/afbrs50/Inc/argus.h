@@ -1,11 +1,11 @@
 /*************************************************************************//**
  * @file
- * @brief       This file is part of the AFBR-S50 API.
- * @details     This file the main header of the AFBR-S50 API.
+ * @brief    	This file is part of the AFBR-S50 API.
+ * @details		This file the main header of the AFBR-S50 API.
  *
  * @copyright
  *
- * Copyright (c) 2023, Broadcom Inc.
+ * Copyright (c) 2021, Broadcom Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 
 #ifndef ARGUS_H
 #define ARGUS_H
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -43,6 +44,7 @@ extern "C" {
 #include "api/argus_api.h"
 
 #ifdef __cplusplus
-} // extern "C"
+}
 #endif
+
 #endif /* ARGUS_H */

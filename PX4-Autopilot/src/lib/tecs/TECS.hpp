@@ -201,11 +201,11 @@ public:
 		float max_climb_rate;			///< Climb rate produced by max allowed throttle [m/s].
 		float vert_accel_limit;			///< Magnitude of the maximum vertical acceleration allowed [m/s²].
 		float equivalent_airspeed_trim;		///< Equivalent cruise airspeed for airspeed less mode [m/s].
-		float tas_min;				///< True airspeed demand lower limit [m/s].
-		float tas_max;				///< True airspeed demand upper limit [m/s].
+		float tas_min;				///< True airpeed demand lower limit [m/s].
 		float pitch_max;			///< Maximum pitch angle allowed in [rad].
 		float pitch_min;			///< Minimal pitch angle allowed in [rad].
-		float throttle_trim;		///< Normalized throttle required to fly level at calibrated airspeed setpoint [0,1]
+		float throttle_trim;			///< Normalized throttle required to fly level at trim airspeed and sea level
+		float throttle_trim_adjusted;		///< Trim throttle adjusted for airspeed, load factor and air density
 		float throttle_max;			///< Normalized throttle upper limit.
 		float throttle_min;			///< Normalized throttle lower limit.
 
@@ -234,8 +234,6 @@ public:
 
 		float load_factor_correction;				///< Gain from normal load factor increase to total energy rate demand [m²/s³].
 		float load_factor;					///< Additional normal load factor.
-
-		float fast_descend;
 	};
 
 	/**
@@ -366,7 +364,6 @@ private:
 	struct AltitudePitchControl {
 		float altitude_rate_setpoint;	///< Controlled altitude rate setpoint [m/s].
 		float tas_rate_setpoint;	///< Controlled true airspeed rate setpoint [m/s²].
-		float tas_setpoint; 		///< Controller true airspeed setpoint [m/s]
 	};
 
 	/**
@@ -397,7 +394,7 @@ private:
 	 * @brief calculate airspeed control proportional output.
 	 *
 	 * @param setpoint is the control setpoints.
-	 * @param input	is the current input measurement of the UAS.
+	 * @param input	is the current input measurment of the UAS.
 	 * @param param	is the control parameters.
 	 * @param flag	is the control flags.
 	 * @return controlled airspeed rate setpoint in [m/s²].
@@ -408,7 +405,7 @@ private:
 	 * @brief calculate altitude control proportional output.
 	 *
 	 * @param setpoint is the control setpoints.
-	 * @param input is the current input measurement of the UAS.
+	 * @param input is the current input measurment of the UAS.
 	 * @param param is the control parameters.
 	 * @return controlled altitude rate setpoint in [m/s].
 	 */
@@ -417,14 +414,14 @@ private:
 	 * @brief Calculate specific energy rates.
 	 *
 	 * @param control_setpoint is the controlles altitude and airspeed rate setpoints.
-	 * @param input is the current input measurement of the UAS.
+	 * @param input is the current input measurment of the UAS.
 	 * @return Specific energy rates in [m²/s³].
 	 */
 	SpecificEnergyRates _calcSpecificEnergyRates(const AltitudePitchControl &control_setpoint, const Input &input) const;
 	/**
 	 * @brief Detect underspeed.
 	 *
-	 * @param input is the current input measurement of the UAS.
+	 * @param input is the current input measurment of the UAS.
 	 * @param param is the control parameters.
 	 * @param flag is the control flags.
 	 */
@@ -545,6 +542,11 @@ private:
 class TECS
 {
 public:
+	enum ECL_TECS_MODE {
+		ECL_TECS_MODE_NORMAL = 0,
+		ECL_TECS_MODE_UNDERSPEED
+	};
+
 	struct DebugOutput {
 		TECSControl::DebugOutput control;
 		float true_airspeed_filtered;
@@ -552,6 +554,7 @@ public:
 		float altitude_reference;
 		float height_rate_reference;
 		float height_rate_direct;
+		enum ECL_TECS_MODE tecs_mode;
 	};
 public:
 	TECS() = default;
@@ -583,8 +586,14 @@ public:
 	 */
 	void update(float pitch, float altitude, float hgt_setpoint, float EAS_setpoint, float equivalent_airspeed,
 		    float eas_to_tas, float throttle_min, float throttle_setpoint_max,
-		    float throttle_trim, float pitch_limit_min, float pitch_limit_max, float target_climbrate,
+		    float throttle_trim, float throttle_trim_adjusted, float pitch_limit_min, float pitch_limit_max, float target_climbrate,
 		    float target_sinkrate, float speed_deriv_forward, float hgt_rate, float hgt_rate_sp = NAN);
+
+	/**
+	 * @brief Initialize the control loop
+	 *
+	 */
+	void initialize(float altitude, float altitude_rate, float equivalent_airspeed, float eas_to_tas);
 
 	void resetIntegrals()
 	{
@@ -606,11 +615,10 @@ public:
 	void set_max_climb_rate(float climb_rate) { _control_param.max_climb_rate = climb_rate; _reference_param.max_climb_rate = climb_rate; };
 
 	void set_altitude_rate_ff(float altitude_rate_ff) { _control_param.altitude_setpoint_gain_ff = altitude_rate_ff; };
-	void set_altitude_error_time_constant(float time_const) { _control_param.altitude_error_gain = 1.0f / math::max(time_const, 0.1f); };
-	void set_fast_descend_altitude_error(float altitude_error) { _fast_descend_alt_err = altitude_error; };
+	void set_altitude_error_time_constant(float time_const) { _control_param.altitude_error_gain = 1.0f / math::max(time_const, 0.1f);; };
 
-	void set_equivalent_airspeed_min(float airspeed) { _equivalent_airspeed_min = airspeed; }
 	void set_equivalent_airspeed_max(float airspeed) { _equivalent_airspeed_max = airspeed; }
+	void set_equivalent_airspeed_min(float airspeed) { _equivalent_airspeed_min = airspeed; }
 	void set_equivalent_airspeed_trim(float airspeed) { _control_param.equivalent_airspeed_trim = airspeed; _airspeed_filter_param.equivalent_airspeed_trim = airspeed; }
 
 	void set_pitch_damping(float damping) { _control_param.pitch_damping_gain = damping; }
@@ -648,33 +656,19 @@ public:
 	float get_throttle_setpoint() {return _control.getThrottleSetpoint();}
 
 	uint64_t timestamp() { return _update_timestamp; }
-	float get_underspeed_ratio() { return _control.getRatioUndersped(); }
+	ECL_TECS_MODE tecs_mode() { return _tecs_mode; }
 
 private:
-	/**
-	 * @brief Initialize the control parameters
-	 *
-	 */
-	void initControlParams(float target_climbrate, float target_sinkrate, float eas_to_tas, float pitch_limit_max,
-			       float pitch_limit_min, float throttle_min, float throttle_setpoint_max, float throttle_trim);
-
-	/**
-	 * @brief Initialize the control loop
-	 *
-	 */
-	void initialize(const float altitude, const float altitude_rate, const float equivalent_airspeed,
-			float eas_to_tas);
-
 	TECSControl 			_control;			///< Control submodule.
 	TECSAirspeedFilter 		_airspeed_filter;		///< Airspeed filter submodule.
 	TECSAltitudeReferenceModel 	_altitude_reference_model;	///< Setpoint reference model submodule.
 
+	enum ECL_TECS_MODE _tecs_mode {ECL_TECS_MODE_NORMAL};		///< Current activated mode.
+
 	hrt_abstime _update_timestamp{0};				///< last timestamp of the update function call.
 
-	float _equivalent_airspeed_min{10.0f};				///< equivalent airspeed demand lower limit (m/sec)
-	float _equivalent_airspeed_max{20.0f};				///< equivalent airspeed demand upper limit (m/sec)
-	float _fast_descend_alt_err{-1.f};	 				///< Altitude difference between current altitude to altitude setpoint needed to descend with higher airspeed [m].
-	float _fast_descend{0.f};					///< Value for fast descend in [0,1]. continuous value used to flatten the high speed value out when close to target altitude.
+	float _equivalent_airspeed_min{3.0f};				///< equivalent airspeed demand lower limit (m/sec)
+	float _equivalent_airspeed_max{30.0f};				///< equivalent airspeed demand upper limit (m/sec)
 
 	static constexpr float DT_MIN = 0.001f;				///< minimum allowed value of _dt (sec)
 	static constexpr float DT_MAX = 1.0f;				///< max value of _dt allowed before a filter state reset is performed (sec)
@@ -706,10 +700,10 @@ private:
 		.vert_accel_limit = 0.0f,
 		.equivalent_airspeed_trim = 15.0f,
 		.tas_min = 10.0f,
-		.tas_max = 20.0f,
 		.pitch_max = 0.5f,
 		.pitch_min = -0.5f,
 		.throttle_trim = 0.0f,
+		.throttle_trim_adjusted = 0.f,
 		.throttle_max = 1.0f,
 		.throttle_min = 0.1f,
 		.altitude_error_gain = 0.2f,
@@ -726,7 +720,6 @@ private:
 		.throttle_slewrate = 0.0f,
 		.load_factor_correction = 0.0f,
 		.load_factor = 1.0f,
-		.fast_descend = 0.f
 	};
 
 	TECSControl::Flag _control_flag{
@@ -735,11 +728,8 @@ private:
 	};
 
 	/**
-	 * @brief Set fast descend value
-	 *
-	 * @param alt_setpoint is the altitude setpoint
-	 * @param alt is the current altitude
+	 * Update the desired airspeed
 	 */
-	void _setFastDescend(float alt_setpoint, float alt);
+	float _update_speed_setpoint(const float tas_min, const float tas_max, const float tas_setpoint, const float tas);
 };
 

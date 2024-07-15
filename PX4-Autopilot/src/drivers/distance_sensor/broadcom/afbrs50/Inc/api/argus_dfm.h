@@ -1,11 +1,11 @@
 /*************************************************************************//**
  * @file
- * @brief       This file is part of the AFBR-S50 API.
- * @details     Defines the dual frequency mode (DFM) setup parameters.
+ * @brief    	This file is part of the AFBR-S50 API.
+ * @details		Defines the dual frequency mode (DFM) setup parameters.
  *
  * @copyright
  *
- * Copyright (c) 2023, Broadcom Inc.
+ * Copyright (c) 2021, Broadcom Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,27 +36,24 @@
 
 #ifndef ARGUS_DFM_H
 #define ARGUS_DFM_H
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*!***************************************************************************
- * @defgroup    argus_dfm Dual Frequency Mode
- * @ingroup     argus_api
+ * @defgroup 	argusdfm Dual Frequency Mode
+ * @ingroup		argusapi
  *
- * @brief       Dual Frequency Mode (DFM) parameter definitions and API functions.
+ * @brief		Dual Frequency Mode (DFM) parameter definitions and API functions.
  *
- * @details     The DFM is an algorithm to extend the unambiguous range of the
- *              sensor by utilizing two detuned measurement frequencies.
+ * @details		The DFM is an algorithm to extend the unambiguous range of the
+ * 				sensor by utilizing two detuned measurement frequencies.
  *
- *              The AFBR-S50 API provides three measurement modes:
- *              - 1X: Single Frequency Measurement
- *              - 4X: Dual Frequency Measurement w/ 4 times the unambiguous
- *                    range of the Single Frequency Measurement
- *              - 8X: Dual Frequency Measurement w/ 8 times the unambiguous
- *                    range of the Single Frequency Measurement
+ *				The AFBR-S50 API provides three measurement modes:
+ *				- 1X: Single Frequency Measurement
+ *				- 4X: Dual Frequency Measurement w/ 4 times the unambiguous
+ *				      range of the Single Frequency Measurement
+ *				- 8X: Dual Frequency Measurement w/ 8 times the unambiguous
+ *				      range of the Single Frequency Measurement
  *
- * @addtogroup  argus_dfm
+ * @addtogroup 	argusdfm
  * @{
  *****************************************************************************/
 
@@ -64,10 +61,10 @@ extern "C" {
 #define ARGUS_DFM_FRAME_COUNT (2U)
 
 /*! The Dual Frequency Mode measurement modes count. Excluding the disabled mode. */
-#define ARGUS_DFM_MODE_COUNT (2U) // except off-mode!
+#define ARGUS_DFM_MODE_COUNT (2U) // expect off-mode!
 
 /*! The Dual Frequency Mode measurement modes enumeration. */
-typedef enum argus_dfm_mode_t {
+typedef enum {
 	/*! Single Frequency Measurement Mode (w/ 1x Unambiguous Range). */
 	DFM_MODE_OFF = 0U,
 
@@ -81,7 +78,4 @@ typedef enum argus_dfm_mode_t {
 
 
 /*! @} */
-#ifdef __cplusplus
-} // extern "C"
-#endif
 #endif /* ARGUS_DFM_H */

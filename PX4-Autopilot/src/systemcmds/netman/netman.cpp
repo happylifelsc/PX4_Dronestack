@@ -53,8 +53,8 @@
 
 constexpr char DEFAULT_NETMAN_CONFIG[] = "/fs/microsd/net.cfg";
 #if defined(CONFIG_NETINIT_DHCPC)
-#  define DEFAULT_PROTO   IPv4PROTO_FALLBACK
-#  define DEFAULT_IP      CONFIG_NETMAN_FALLBACK_IPADDR
+#  define DEFAULT_PROTO    IPv4PROTO_FALLBACK
+#  define DEFAULT_IP      0XC0A80003  // 192.168.0.3
 #else
 #  define DEFAULT_PROTO   IPv4PROTO_STATIC
 #  define DEFAULT_IP      CONFIG_NETINIT_IPADDR
@@ -201,7 +201,7 @@ public:
 		struct ipv4cfg_s ipcfg;
 		int rv = ipcfg_read(netdev, (FAR struct ipcfg_s *) &ipcfg, AF_INET);
 
-		if (rv == -EINVAL || rv == -ENOENT ||
+		if (rv == -EINVAL ||
 		    (rv == OK  && (ipcfg.proto > IPv4PROTO_FALLBACK || ipcfg.ipaddr == 0xffffffff))) {
 			// Build a default
 			ipcfg.ipaddr  = HTONL(DEFAULT_IP);
@@ -375,7 +375,7 @@ write_reboot:
 
 	sleep(1);
 
-	px4_reboot_request(REBOOT_REQUEST);
+	px4_reboot_request(false);
 
 	while (1) { px4_usleep(1); } // this command should not return on success
 

@@ -81,8 +81,8 @@ bool CRSFTelemetry::send_battery()
 		return false;
 	}
 
-	uint16_t voltage = battery_status.voltage_v * 10;
-	uint16_t current = battery_status.current_a * 10;
+	uint16_t voltage = battery_status.voltage_filtered_v * 10;
+	uint16_t current = battery_status.current_filtered_a * 10;
 	int fuel = battery_status.discharged_mah;
 	uint8_t remaining = battery_status.remaining * 100;
 	return crsf_send_telemetry_battery(_uart_fd, voltage, current, fuel, remaining);
@@ -96,11 +96,11 @@ bool CRSFTelemetry::send_gps()
 		return false;
 	}
 
-	int32_t latitude = static_cast<int32_t>(round(vehicle_gps_position.latitude_deg * 1e7));
-	int32_t longitude = static_cast<int32_t>(round(vehicle_gps_position.longitude_deg * 1e7));
+	int32_t latitude = vehicle_gps_position.lat;
+	int32_t longitude = vehicle_gps_position.lon;
 	uint16_t groundspeed = vehicle_gps_position.vel_d_m_s / 3.6f * 10.f;
 	uint16_t gps_heading = math::degrees(vehicle_gps_position.cog_rad) * 100.f;
-	uint16_t altitude = static_cast<int16_t>(round(vehicle_gps_position.altitude_msl_m + 1.0));
+	uint16_t altitude = vehicle_gps_position.alt + 1000;
 	uint8_t num_satellites = vehicle_gps_position.satellites_used;
 
 	return crsf_send_telemetry_gps(_uart_fd, latitude, longitude, groundspeed,

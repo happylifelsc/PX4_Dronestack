@@ -98,6 +98,7 @@ IOController::IOController(const char *name, const px4::wq_config_t &config) :
 
 void IOController::Run()
 {
+
 	actuator_outputs_s actuator_outputs;
 
 	while (_actuator_outputs_sub.update(&actuator_outputs)) {
@@ -117,5 +118,8 @@ void IOController::Run()
 				up_pwm_update(i);
 			}
 		}
+
 	}
+
+
 }

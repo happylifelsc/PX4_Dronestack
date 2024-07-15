@@ -34,26 +34,6 @@
 add_subdirectory(launchdetection)
 add_subdirectory(runway_takeoff)
 
-set(POSCONTROL_DEPENDENCIES
-	launchdetection
-	npfg
-	runway_takeoff
-	SlewRate
-	tecs
-	motion_planning
-    performance_model
-)
-
-if(CONFIG_FIGURE_OF_EIGHT)
-	add_subdirectory(figure_eight)
-	set(POSCONTROL_DEPENDENCIES
-		${POSCONTROL_DEPENDENCIES}
-		figure_eight
-	)
-endif()
-
-
-
 px4_add_module(
 	MODULE modules__fw_pos_control
 	MAIN fw_pos_control
@@ -61,5 +41,10 @@ px4_add_module(
 		FixedwingPositionControl.cpp
 		FixedwingPositionControl.hpp
 	DEPENDS
-		${POSCONTROL_DEPENDENCIES}
+		launchdetection
+		npfg
+		runway_takeoff
+		SlewRate
+		tecs
+		motion_planning
 	)

@@ -898,13 +898,11 @@ int io_timer_set_enable(bool state, io_timer_channel_mode_t mode, io_timer_chann
 
 	case IOTimerChanMode_Dshot:
 		dier_bit = 0;
-
-	/* fallthrough */
-	case IOTimerChanMode_Capture:
 		cr1_bit  = state ? GTIM_CR1_CEN : 0;
+		break;
 
-	/* fallthrough */
 	case IOTimerChanMode_PWMIn:
+	case IOTimerChanMode_Capture:
 		break;
 
 	default:

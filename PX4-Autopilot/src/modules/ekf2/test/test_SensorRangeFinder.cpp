@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2020-2023 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020 ECL Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,10 +34,10 @@
 #include <gtest/gtest.h>
 #include <math.h>
 #include "EKF/common.h"
-#include "EKF/aid_sources/range_finder/sensor_range_finder.hpp"
+#include "EKF/sensor_range_finder.hpp"
 #include <matrix/math.hpp>
 
-using estimator::sensor::rangeSample;
+using estimator::rangeSample;
 using matrix::Dcmf;
 using matrix::Eulerf;
 using namespace estimator::sensor;
@@ -240,16 +240,8 @@ TEST_F(SensorRangeFinderTest, rangeStuck)
 
 	// THEN: the data should be marked as unhealthy
 	// because the sensor is "stuck"
-	if (_range_finder.isStuckDetectorEnabled()) {
-		EXPECT_FALSE(_range_finder.isDataHealthy());
-		EXPECT_FALSE(_range_finder.isHealthy());
-
-	} else {
-		// If stuck detector is disabled then the
-		// data should instantly be marked as healthy
-		EXPECT_TRUE(_range_finder.isDataHealthy());
-		EXPECT_TRUE(_range_finder.isHealthy());
-	}
+	EXPECT_FALSE(_range_finder.isDataHealthy());
+	EXPECT_FALSE(_range_finder.isHealthy());
 
 	// BUT WHEN: we continue to send samples but with changing distance
 	for (int i = 0; i < 2; i++) {

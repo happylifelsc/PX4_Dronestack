@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/cpsl/SDK_ws/src/offboard/build/devel/setup.sh

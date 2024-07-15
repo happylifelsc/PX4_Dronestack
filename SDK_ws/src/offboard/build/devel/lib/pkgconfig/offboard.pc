@@ -1,0 +1,8 @@
+prefix=/home/cpsl/SDK_ws/src/offboard/build/devel
+
+Name: offboard
+Description: Description of offboard
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

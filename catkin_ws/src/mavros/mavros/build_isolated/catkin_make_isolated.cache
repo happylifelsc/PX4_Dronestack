@@ -1,0 +1,2 @@
+
+-G Unix Makefiles -DCATKIN_DEVEL_PREFIX=/home/cpsl/catkin_ws/src/mavros/mavros/devel_isolated -DCMAKE_INSTALL_PREFIX=/home/cpsl/catkin_ws/src/mavros/mavros/install_isolated

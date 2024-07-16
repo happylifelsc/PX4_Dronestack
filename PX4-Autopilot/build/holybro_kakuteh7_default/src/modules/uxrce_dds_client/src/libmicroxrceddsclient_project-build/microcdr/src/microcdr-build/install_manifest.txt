@@ -1,0 +1,8 @@
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/lib/libmicrocdr.a
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/include/ucdr/microcdr.h
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/include/ucdr/visibility.h
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/include/ucdr/config.h
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/share/microcdr/cmake/microcdrTargets.cmake
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/share/microcdr/cmake/microcdrTargets-minsizerel.cmake
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/share/microcdr/cmake/microcdrConfig.cmake
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/share/microcdr/cmake/microcdrConfigVersion.cmake

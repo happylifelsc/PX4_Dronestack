@@ -1,0 +1,29 @@
+if [ $VEHICLE_TYPE = fw ]
+then
+. ${R}etc/init.d/rc.fw_apps
+fi
+if [ $VEHICLE_TYPE = mc ]
+then
+. ${R}etc/init.d/rc.mc_apps
+fi
+if [ $VEHICLE_TYPE = rover ]
+then
+. ${R}etc/init.d/rc.rover_apps
+fi
+if [ $VEHICLE_TYPE = vtol ]
+then
+. ${R}etc/init.d/rc.vtol_apps
+fi
+if [ $VEHICLE_TYPE = airship ]
+then
+. ${R}etc/init.d/rc.airship_apps
+fi
+if [ $VEHICLE_TYPE = uuv ]
+then
+. ${R}etc/init.d/rc.uuv_apps
+fi
+if [ $VEHICLE_TYPE = none ]
+then
+echo "No autostart ID found"
+ekf2 start &
+fi

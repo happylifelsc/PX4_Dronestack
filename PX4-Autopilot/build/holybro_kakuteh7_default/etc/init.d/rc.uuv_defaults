@@ -1,0 +1,3 @@
+set VEHICLE_TYPE uuv
+param set-default MAV_TYPE 12
+param set-default CBRK_AIRSPD_CHK 162128

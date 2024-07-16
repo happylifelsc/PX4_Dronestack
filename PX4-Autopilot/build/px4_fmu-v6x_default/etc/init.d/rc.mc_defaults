@@ -1,0 +1,10 @@
+set VEHICLE_TYPE mc
+param set-default MAV_TYPE 2
+if param compare IMU_GYRO_RATEMAX 400
+then
+param set-default IMU_GYRO_RATEMAX 800
+fi
+param set-default NAV_ACC_RAD 2
+param set-default RTL_RETURN_ALT 30
+param set-default RTL_DESCEND_ALT 10
+param set-default GPS_UBX_DYNMODEL 6

@@ -1,0 +1,6 @@
+board_adc start
+if ! mpu6000 -R 6 -s start
+then
+icm20689 -R 6 -s start
+fi
+bmp280 -X start

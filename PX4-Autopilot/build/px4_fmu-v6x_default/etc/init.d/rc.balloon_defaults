@@ -1,0 +1,3 @@
+set VEHICLE_TYPE fw
+param set-default MAV_TYPE 8
+param set-default SYS_MC_EST_GROUP 1

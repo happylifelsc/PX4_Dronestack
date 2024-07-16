@@ -1,0 +1,124 @@
+[1/16] Creating directories for 'microcdr'
+[2/16] Performing download step (git clone) for 'microcdr'
+Cloning into 'microcdr'...
+Note: switching to 'v2.0.0'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+HEAD is now at 1c712a0 Release v2.0.0
+[3/16] Performing update step for 'microcdr'
+[4/16] No patch step for 'microcdr'
+[5/16] Performing configure step for 'microcdr'
+loading initial cache file /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/tmp/microcdr-cache-RelWithDebInfo.cmake
+-- The C compiler identification is GNU 9.4.0
+-- Check for working C compiler: /bin/cc
+-- Check for working C compiler: /bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- The CXX compiler identification is GNU 9.4.0
+-- Check for working CXX compiler: /bin/c++
+-- Check for working CXX compiler: /bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build
+[6/16] Performing build step for 'microcdr'
+[1/8] Creating directories for 'ucdr'
+[2/8] No download step for 'ucdr'
+[3/8] No update step for 'ucdr'
+[4/8] No patch step for 'ucdr'
+[5/8] Performing configure step for 'ucdr'
+loading initial cache file /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/ucdr-prefix/tmp/ucdr-cache-RelWithDebInfo.cmake
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build
+[6/8] Performing build step for 'ucdr'
+[1/6] Building C object CMakeFiles/microcdr.dir/src/c/types/string.c.o
+[2/6] Building C object CMakeFiles/microcdr.dir/src/c/common.c.o
+[3/6] Building C object CMakeFiles/microcdr.dir/src/c/types/sequence.c.o
+[4/6] Building C object CMakeFiles/microcdr.dir/src/c/types/array.c.o
+[5/6] Building C object CMakeFiles/microcdr.dir/src/c/types/basic.c.o
+[6/6] Linking C static library libmicrocdr.a
+[7/8] No install step for 'ucdr'
+[8/8] Completed 'ucdr'
+[7/16] Performing install step for 'microcdr'
+[0/1] Install the project...
+-- Install configuration: "RelWithDebInfo"
+-- Installing: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/lib/libmicrocdr.a
+-- Installing: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/include/ucdr
+-- Installing: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/include/ucdr/microcdr.h
+-- Installing: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/include/ucdr/visibility.h
+-- Installing: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/include/ucdr/config.h
+-- Installing: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/share/microcdr/cmake/microcdrTargets.cmake
+-- Installing: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/share/microcdr/cmake/microcdrTargets-relwithdebinfo.cmake
+-- Installing: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/share/microcdr/cmake/microcdrConfig.cmake
+-- Installing: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/temp_install/microcdr-2.0.0/share/microcdr/cmake/microcdrConfigVersion.cmake
+[8/16] Completed 'microcdr'
+[9/16] Creating directories for 'uclient'
+[10/16] No download step for 'uclient'
+[11/16] No patch step for 'uclient'
+[12/16] No update step for 'uclient'
+[13/16] Performing configure step for 'uclient'
+loading initial cache file /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/uclient-prefix/tmp/uclient-cache-RelWithDebInfo.cmake
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE  
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build
+[14/16] Performing build step for 'uclient'
+[1/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/stream/input_best_effort_stream.c.o
+[2/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/stream/output_best_effort_stream.c.o
+[3/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/stream/seq_num.c.o
+[4/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/stream/stream_id.c.o
+[5/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/submessage.c.o
+[6/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/object_id.c.o
+[7/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/stream/stream_storage.c.o
+[8/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/serialization/xrce_subheader.c.o
+[9/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/serialization/xrce_header.c.o
+[10/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/util/time.c.o
+[11/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/session_info.c.o
+[12/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/common_create_entities.c.o
+[13/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/create_entities_ref.c.o
+[14/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/util/ping.c.o
+[15/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/stream/input_reliable_stream.c.o
+[16/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/profile/transport/ip/udp/udp_transport.c.o
+[17/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/read_access.c.o
+[18/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/profile/transport/serial/serial_transport.c.o
+[19/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/create_entities_xml.c.o
+[20/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/profile/transport/ip/ip_posix.c.o
+[21/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/stream/output_reliable_stream.c.o
+[22/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/create_entities_bin.c.o
+[23/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/profile/transport/serial/serial_transport_posix.c.o
+[24/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/write_access.c.o
+[25/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/profile/transport/stream_framing/stream_framing_protocol.c.o
+[26/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/profile/transport/ip/udp/udp_transport_posix.c.o
+[27/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/session/session.c.o
+[28/29] Building C object CMakeFiles/microxrcedds_client.dir/src/c/core/serialization/xrce_types.c.o
+[29/29] Linking C static library libmicroxrcedds_client.a
+[15/16] No install step for 'uclient'
+[16/16] Completed 'uclient'

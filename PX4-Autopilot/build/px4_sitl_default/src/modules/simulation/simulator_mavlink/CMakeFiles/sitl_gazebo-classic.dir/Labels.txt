@@ -1,0 +1,13 @@
+# Target labels
+ sitl_gazebo-classic
+# Source files and their labels
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/simulation/simulator_mavlink/CMakeFiles/sitl_gazebo-classic
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/simulation/simulator_mavlink/CMakeFiles/sitl_gazebo-classic.rule
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/simulation/simulator_mavlink/CMakeFiles/sitl_gazebo-classic-complete.rule
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/external/Stamp/sitl_gazebo-classic/sitl_gazebo-classic-install.rule
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/external/Stamp/sitl_gazebo-classic/sitl_gazebo-classic-mkdir.rule
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/external/Stamp/sitl_gazebo-classic/sitl_gazebo-classic-download.rule
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/external/Stamp/sitl_gazebo-classic/sitl_gazebo-classic-update.rule
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/external/Stamp/sitl_gazebo-classic/sitl_gazebo-classic-patch.rule
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/external/Stamp/sitl_gazebo-classic/sitl_gazebo-classic-configure.rule
+/home/cpsl/PX4-Autopilot/build/px4_sitl_default/external/Stamp/sitl_gazebo-classic/sitl_gazebo-classic-build.rule

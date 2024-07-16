@@ -1,0 +1,17 @@
+Create version.h
+CP: arch/dummy/Kconfig to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/arch/dummy/dummy_kconfig
+CP: boards/dummy/Kconfig to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/../../../../boards/px4/fmu-v6x/nuttx-config/Kconfig
+LN: platform/board to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/apps/platform/dummy
+LN: include/arch to arch/arm/include
+LN: include/arch/board to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/../../../../boards/px4/fmu-v6x/nuttx-config/include
+LN: drivers/platform to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/drivers/dummy
+LN: include/arch/chip to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/arch/arm/include/stm32h7
+LN: arch/arm/src/chip to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/arch/arm/src/stm32h7
+LN: arch/arm/src/board to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/../../../../boards/px4/fmu-v6x/nuttx-config/src
+LN: platform/board to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/apps/platform/dummy
+Register: renew
+Register: ping
+Register: nsh
+Register: sh
+Register: sercon
+Register: serdis

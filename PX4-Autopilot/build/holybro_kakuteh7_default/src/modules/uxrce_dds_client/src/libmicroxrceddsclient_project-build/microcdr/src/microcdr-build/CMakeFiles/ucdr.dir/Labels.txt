@@ -1,0 +1,13 @@
+# Target labels
+ ucdr
+# Source files and their labels
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/CMakeFiles/ucdr
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/CMakeFiles/ucdr.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/CMakeFiles/ucdr-complete.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/ucdr-prefix/src/ucdr-stamp/ucdr-install.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/ucdr-prefix/src/ucdr-stamp/ucdr-mkdir.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/ucdr-prefix/src/ucdr-stamp/ucdr-download.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/ucdr-prefix/src/ucdr-stamp/ucdr-update.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/ucdr-prefix/src/ucdr-stamp/ucdr-patch.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/ucdr-prefix/src/ucdr-stamp/ucdr-configure.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/microcdr/src/microcdr-build/ucdr-prefix/src/ucdr-stamp/ucdr-build.rule

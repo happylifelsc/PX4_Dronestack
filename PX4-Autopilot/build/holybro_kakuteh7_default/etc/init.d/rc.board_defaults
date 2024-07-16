@@ -1,0 +1,15 @@
+if [ -f $PARAM_FILE ]
+then
+param load $PARAM_FILE
+param save
+mv $PARAM_FILE ${PARAM_FILE}.bak
+reboot
+fi
+param set-default BAT1_V_DIV 11.2
+param set-default BAT1_A_PER_V 59.5
+param set-default CBRK_SUPPLY_CHK 894281
+param set-default SYS_AUTOSTART 4050
+param set-default SYS_HAS_MAG 0
+param set-default EKF2_IMU_CONTROL 7
+param set-default CBRK_BUZZER 782090
+param set-default IMU_GYRO_RATEMAX 2000

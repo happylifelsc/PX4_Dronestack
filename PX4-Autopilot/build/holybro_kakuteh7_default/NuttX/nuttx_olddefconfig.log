@@ -1,0 +1,10 @@
+CP: arch/dummy/Kconfig to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/arch/dummy/dummy_kconfig
+CP: boards/dummy/Kconfig to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/boards/dummy/dummy_kconfig
+LN: platform/board to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/apps/platform/dummy
+LN: include/arch to arch/arm/include
+LN: include/arch/board to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/../../../../boards/holybro/kakuteh7/nuttx-config/include
+LN: drivers/platform to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/drivers/dummy
+LN: include/arch/chip to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/arch/arm/include/stm32h7
+LN: arch/arm/src/chip to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/arch/arm/src/stm32h7
+LN: arch/arm/src/board to /home/cpsl/PX4-Autopilot/platforms/nuttx/NuttX/nuttx/../../../../boards/holybro/kakuteh7/nuttx-config/src
+DEBUG: kconfiglib kconfig-conf wrapper, arguments: --olddefconfig Kconfig

@@ -1,0 +1,7 @@
+set VEHICLE_TYPE rover
+param set-default MAV_TYPE 10
+param set-default CBRK_AIRSPD_CHK 162128
+param set-default MIS_TAKEOFF_ALT 0.01
+param set-default NAV_ACC_RAD 2
+param set-default NAV_LOITER_RAD 2
+param set-default NAV_FW_ALT_RAD 1000

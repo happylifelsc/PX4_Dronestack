@@ -1,0 +1,13 @@
+# Target labels
+ libmicroxrceddsclient_project
+# Source files and their labels
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/CMakeFiles/libmicroxrceddsclient_project
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/CMakeFiles/libmicroxrceddsclient_project.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/CMakeFiles/libmicroxrceddsclient_project-complete.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-stamp/libmicroxrceddsclient_project-install.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-stamp/libmicroxrceddsclient_project-mkdir.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-stamp/libmicroxrceddsclient_project-download.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-stamp/libmicroxrceddsclient_project-update.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-stamp/libmicroxrceddsclient_project-patch.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-stamp/libmicroxrceddsclient_project-configure.rule
+/home/cpsl/PX4-Autopilot/build/holybro_kakuteh7_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-stamp/libmicroxrceddsclient_project-build.rule

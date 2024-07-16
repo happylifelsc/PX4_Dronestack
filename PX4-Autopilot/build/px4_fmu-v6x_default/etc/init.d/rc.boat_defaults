@@ -1,0 +1,5 @@
+set VEHICLE_TYPE rover
+param set-default MAV_TYPE 11
+param set-default MIS_TAKEOFF_ALT 0.01
+param set-default NAV_ACC_RAD 2
+param set-default NAV_FW_ALT_RAD 1000

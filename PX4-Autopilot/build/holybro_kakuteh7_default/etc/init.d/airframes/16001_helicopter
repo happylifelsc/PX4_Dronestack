@@ -1,0 +1,10 @@
+. ${R}etc/init.d/rc.heli_defaults
+param set-default MC_ROLLRATE_P 0
+param set-default MC_ROLLRATE_I 0
+param set-default MC_ROLLRATE_D 0
+param set-default MC_ROLLRATE_FF 0.1
+param set-default MC_PITCHRATE_P 0
+param set-default MC_PITCHRATE_I 0
+param set-default MC_PITCHRATE_D 0
+param set-default MC_PITCHRATE_FF 0.1
+param set-default CA_AIRFRAME 10

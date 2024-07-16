@@ -1,0 +1,8 @@
+ekf2 start &
+control_allocator start
+fw_rate_control start
+fw_att_control start
+fw_pos_control start
+airspeed_selector start
+fw_autotune_attitude_control start
+land_detector start fixedwing

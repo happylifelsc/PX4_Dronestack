@@ -1,0 +1,48 @@
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/bin/ninja cmTC_2bf13 && [1/2] Building C object CMakeFiles/cmTC_2bf13.dir/src.c.o
+[2/2] Linking C executable cmTC_2bf13
+FAILED: cmTC_2bf13 
+: && /bin/cc -I/home/cpsl/PX4-Autopilot/boards/px4/sitl/src -I/home/cpsl/PX4-Autopilot/platforms/posix/src/px4/common/include -I/home/cpsl/PX4-Autopilot/build/px4_sitl_default -I/home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/lib -I/home/cpsl/PX4-Autopilot/platforms/posix/src/px4/generic/generic/include -I/home/cpsl/PX4-Autopilot/platforms/posix/src/px4/common/include -I/home/cpsl/PX4-Autopilot/platforms/common -I/home/cpsl/PX4-Autopilot/platforms/common/include -I/home/cpsl/PX4-Autopilot/src -I/home/cpsl/PX4-Autopilot/src/include -I/home/cpsl/PX4-Autopilot/src/lib -I/home/cpsl/PX4-Autopilot/src/lib/matrix -I/home/cpsl/PX4-Autopilot/src/modules -I/home/cpsl/PX4-Autopilot/platforms/posix/include -I/home/cpsl/PX4-Autopilot/build/px4_sitl_default/external/Install/include -DCMAKE_HAVE_LIBC_PTHREAD  -fuse-ld=gold CMakeFiles/cmTC_2bf13.dir/src.c.o  -o cmTC_2bf13   && :
+CMakeFiles/cmTC_2bf13.dir/src.c.o:src.c:function main: error: undefined reference to 'pthread_create'
+CMakeFiles/cmTC_2bf13.dir/src.c.o:src.c:function main: error: undefined reference to 'pthread_detach'
+CMakeFiles/cmTC_2bf13.dir/src.c.o:src.c:function main: error: undefined reference to 'pthread_join'
+collect2: error: ld returned 1 exit status
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <pthread.h>
+
+void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/modules/uxrce_dds_client/src/libmicroxrceddsclient_project-build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/bin/ninja cmTC_6c9ae && [1/2] Building C object CMakeFiles/cmTC_6c9ae.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_6c9ae
+FAILED: cmTC_6c9ae 
+: && /bin/cc -I/home/cpsl/PX4-Autopilot/boards/px4/sitl/src -I/home/cpsl/PX4-Autopilot/platforms/posix/src/px4/common/include -I/home/cpsl/PX4-Autopilot/build/px4_sitl_default -I/home/cpsl/PX4-Autopilot/build/px4_sitl_default/src/lib -I/home/cpsl/PX4-Autopilot/platforms/posix/src/px4/generic/generic/include -I/home/cpsl/PX4-Autopilot/platforms/posix/src/px4/common/include -I/home/cpsl/PX4-Autopilot/platforms/common -I/home/cpsl/PX4-Autopilot/platforms/common/include -I/home/cpsl/PX4-Autopilot/src -I/home/cpsl/PX4-Autopilot/src/include -I/home/cpsl/PX4-Autopilot/src/lib -I/home/cpsl/PX4-Autopilot/src/lib/matrix -I/home/cpsl/PX4-Autopilot/src/modules -I/home/cpsl/PX4-Autopilot/platforms/posix/include -I/home/cpsl/PX4-Autopilot/build/px4_sitl_default/external/Install/include -DCHECK_FUNCTION_EXISTS=pthread_create  -fuse-ld=gold CMakeFiles/cmTC_6c9ae.dir/CheckFunctionExists.c.o  -o cmTC_6c9ae  -lpthreads && :
+/bin/ld.gold: error: cannot find -lpthreads
+CMakeFiles/cmTC_6c9ae.dir/CheckFunctionExists.c.o:CheckFunctionExists.c:function main: error: undefined reference to 'pthread_create'
+collect2: error: ld returned 1 exit status
+ninja: build stopped: subcommand failed.
+
+
+

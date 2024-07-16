@@ -1,0 +1,1 @@
+cmd='/usr/bin/cmake;-DCONFIG=px4_io-v2_default;-GNinja;<SOURCE_DIR><SOURCE_SUBDIR>'

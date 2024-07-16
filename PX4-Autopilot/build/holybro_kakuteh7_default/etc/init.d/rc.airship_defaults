@@ -1,0 +1,2 @@
+set VEHICLE_TYPE airship
+param set-default MAV_TYPE 7

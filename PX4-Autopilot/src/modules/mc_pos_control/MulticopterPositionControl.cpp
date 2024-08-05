@@ -70,6 +70,8 @@ bool MulticopterPositionControl::init()
 	_time_stamp_last_loop = hrt_absolute_time();
 	ScheduleNow();
 
+	PX4_INFO("pos_control module started");
+
 	return true;
 }
 
@@ -343,7 +345,7 @@ void MulticopterPositionControl::Run()
 
 		if (_local_pos_sub.update(&vehicle_local_position)) {
 
-			PX4_INFO("(no anomaly) Check received local position in position module: %.2f, %.2f, %.2f", (double)vehicle_local_position.x, (double)vehicle_local_position.y, (double)vehicle_local_position.z);
+			PX4_INFO("run function in pos module is running");
 
 			const float dt =
 				math::constrain(((vehicle_local_position.timestamp_sample - _time_stamp_last_loop) * 1e-6f), 0.002f, 0.04f);
@@ -674,7 +676,7 @@ void MulticopterPositionControl::Run()
 			_heading_reset_counter = vehicle_local_position.heading_reset_counter;
 
 
-			PX4_INFO("(has anomaly) Check received local position in position module: %.2f, %.2f, %.2f", (double)vehicle_local_position.x, (double)vehicle_local_position.y, (double)vehicle_local_position.z);
+			// PX4_INFO("(has anomaly) Check received local position in position module: %.2f, %.2f, %.2f", (double)vehicle_local_position.x, (double)vehicle_local_position.y, (double)vehicle_local_position.z);
 
 			PositionControlStates states{set_vehicle_states(vehicle_local_position)};
 

@@ -1,3 +1,4 @@
+
 #pragma once
 
 #pragma GCC diagnostic push
@@ -19,6 +20,8 @@
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/px4_work_queue/WorkItem.hpp>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+#include <px4_platform_common/time.h>
+
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionMultiArray.hpp>
@@ -46,9 +49,9 @@
 #include <ResilientEKF.hpp>
 
 
-
 extern "C" __EXPORT int mc_resilient_estimator_main(int argc, char *argv[]);
-class ResilientEstimator : public ModuleBase<ResilientEstimator>, public ModuleParams, public px4::WorkItem
+class ResilientEstimator : public ModuleBase<ResilientEstimator>,
+        public ModuleParams, public px4::WorkItem
 {
 public:
     ResilientEstimator();
@@ -83,13 +86,13 @@ public:
     vehicle_odometry_s prev_visual_odom;
 
 
-    SlidingWindowResult sliding_window_detection(matrix::Vector<int, 1000>* window, size_t window_size, int new_score);
+    SlidingWindowResult sliding_window_detection(matrix::Vector<int, 1000>& window, size_t window_size, int new_score);
 
     matrix::Vector3f quaternionToEuler(double q0, double q1, double q2, double q3);
 
     matrix::Vector4f eulerToQuaternionVector(double roll, double pitch, double yaw);
 
-    matrix::Vector3f calculate_angular_acc_from_dynamics(matrix::Vector3f angular_vels, matrix::Vector3f torques);
+    matrix::Vector3f calculate_angular_acc_from_dynamics(const matrix::Vector3f& angular_vels, const matrix::Vector3f& torques);
 
     TorqueAndThrust calculate_individual_torques_and_thrust(matrix::Vector4f& rotor_speeds, matrix::Vector3f& velocity);
 
@@ -130,6 +133,23 @@ private:
     perf_counter_t	_loop_perf;
 
 
+    matrix::Vector4f quaternion_output;
+    matrix::Quatf q;
+    matrix::Vector4f quaternionVector;
+    matrix::Vector3f angular_velocity_output_raw;
+    matrix::Vector3f angular_velocity_output_filtered;
+    matrix::Vector3f angular_velocity_output_filtered_vector;
+    matrix::Vector3f torque_vector;
+    matrix::Vector3f robust_angular_acc_vector;
+    matrix::Vector<int, 1000> cusum_window;
+    matrix::Vector3f angular_velocity_estimate_residuals;
+
+    robust_angular_acceleration_s robust_angular_acc;
+    robust_attitude_s robust_att;
+    anomaly_detection_s anomaly_detection_msg;
+    resilient_state_estimate_s resilient_state_estimate_msg;
+
+
 
 //     DEFINE_PARAMETERS(
 //         // Add module parameters here
@@ -142,5 +162,6 @@ private:
 // math::LowPassFilter2pVector3f _lp_filter_torque{1000.0f, 30.0f};
 // math::LowPassFilter2p _lp_filter_thrust(1000.0f, 30.0f);
 // math::LowPassFilter2pVector3f _lp_filter_velocity{1000.0f, 30.0f};
+
 math::LowPassFilter2p<float> _lp_filter_velocity[3] {};
 math::NotchFilter<matrix::Vector3f> _notch_filter_velocity{};

@@ -1,9 +1,41 @@
 #include "ResilientEKF.hpp"
 #include <cmath>
 
-ResilientEKF::ResilientEKF(matrix::Vector<float, 16>& Data, float timeStep, int n_states, int n_control, int n_obs,
-                 matrix::Matrix<float, 7, 12>& obs_matrix, matrix::Matrix<float, 12, 12>& process_noise_matrix,
-                 matrix::Matrix<float, 7, 7>& observation_noise_matrix, float Mass, float Ixx, float Iyy, float Izz, float Im, float d, float C_T, float C_M) {
+
+// Static initialization
+matrix::Matrix<float, 7, 12> ResilientEKF::H = []() {
+    static matrix::Matrix<float, 7, 12> mat;
+    mat.zero();
+    mat(0, 2) = 1.0f;
+    mat(1, 6) = 1.0f;
+    mat(2, 7) = 1.0f;
+    mat(3, 8) = 1.0f;
+    mat(4, 9) = 1.0f;
+    mat(5, 10) = 1.0f;
+    mat(6, 11) = 1.0f;
+    return mat;
+}();
+
+matrix::Matrix<float, 12, 12> ResilientEKF::Q = []() {
+    matrix::Matrix<float, 12, 12> mat;
+    mat.setIdentity();
+    return 0.01f * mat;
+}();
+
+matrix::Matrix<float, 7, 7> ResilientEKF::R = []() {
+    matrix::Matrix<float, 7, 7> mat;
+    mat.zero();
+    mat(0, 0) = 0.01f;
+    for (int i = 1; i < 4; ++i) {
+        mat(i, i) = 0.01f;
+    }
+    for (int i = 4; i < 7; ++i) {
+        mat(i, i) = 0.01f;
+    }
+    return mat;
+}();
+
+ResilientEKF::ResilientEKF(matrix::Vector<float, 16>& Data, float timeStep, int n_states, int n_control, int n_obs, float Mass, float Ixx, float Iyy, float Izz, float Im, float d, float C_T, float C_M) {
 
     // Initialize coefficients
     this->Mass = Mass;
@@ -21,18 +53,19 @@ ResilientEKF::ResilientEKF(matrix::Vector<float, 16>& Data, float timeStep, int 
     this->n = n_states;
     this->m = n_control;
     this->p = n_obs;
-    this->H = obs_matrix;
-    this->Q = process_noise_matrix;
-    this->R = observation_noise_matrix;
+    // this->H = obs_matrix;
+    // this->Q = process_noise_matrix;
+    // this->R = observation_noise_matrix;
 
-    // Example of initializing other member variables based on the constructor parameters
-    this->x_hat_prev = matrix::Vector<float, 12>();
-    this->x_cond_prev = matrix::Vector<float, 12>();
-    this->U_prev = matrix::Vector<float, 4>();
-    this->P_prev = matrix::Matrix<float, 12, 12>();
 
-    // Initialize the state transition matrix F, if it's static or depends on parameters that don't change frequently
-    this->F = matrix::Matrix<float, 12, 12>(); // You might need to update this in your predict or update methods
+    // // Example of initializing other member variables based on the constructor parameters
+    // this->x_hat_prev = matrix::Vector<float, 12>();
+    // this->x_cond_prev = matrix::Vector<float, 12>();
+    // this->U_prev = matrix::Vector<float, 4>();
+    // this->P_prev = matrix::Matrix<float, 12, 12>();
+
+    // // Initialize the state transition matrix F, if it's static or depends on parameters that don't change frequently
+    // this->F = matrix::Matrix<float, 12, 12>(); // You might need to update this in your predict or update methods
 
     // Control input U
     this->U = matrix::Vector<float, 4>();
@@ -41,8 +74,8 @@ ResilientEKF::ResilientEKF(matrix::Vector<float, 16>& Data, float timeStep, int 
     this->U(2) = Data(14);
     this->U(3) = Data(15); // Assuming data contains control inputs in the last four positions
 
-    // Initial state estimate, if it's based on `data` or should be zero-initialized
-    this->x_hat_cond = matrix::Vector<float, 12>();
+    // // Initial state estimate, if it's based on `data` or should be zero-initialized
+    // this->x_hat_cond = matrix::Vector<float, 12>();
 
 
     // Initialize y
@@ -56,13 +89,13 @@ ResilientEKF::ResilientEKF(matrix::Vector<float, 16>& Data, float timeStep, int 
     this->y(6) = Data(11);
 }
 
-
+// delete H(other.H), Q(other.Q), R(other.R) by zyl and gpt
 ResilientEKF::ResilientEKF(const ResilientEKF& other)
     : data(other.data), Mass(other.Mass), Ixx(other.Ixx), Iyy(other.Iyy),
       Izz(other.Izz), Im(other.Im), d(other.d), C_T(other.C_T), C_M(other.C_M),
       n(other.n), m(other.m), p(other.p), dt(other.dt),
       x_hat_prev(other.x_hat_prev), x_cond_prev(other.x_cond_prev), U_prev(other.U_prev), P_prev(other.P_prev),
-      U(other.U), F(other.F), H(other.H), Q(other.Q), R(other.R),
+      U(other.U), F(other.F),
       x_hat_cond(other.x_hat_cond), y(other.y), z(other.z),
       P_cond(other.P_cond), S(other.S), K(other.K),
       x_hat(other.x_hat), P_k(other.P_k), res(other.res), err(other.err) {}
@@ -203,8 +236,14 @@ void ResilientEKF::calculate_priors() {
     F(11, 0) = z_110;
     F(11, 1) = z_111;
 
-    P_cond = F * P_prev * F.transpose() + Q;
-    S = H * P_cond * H.transpose() + R;
+    multiplyMatricesInPlace(F, P_prev, temp1);
+    multiplyMatricesInPlace(temp1, F.transpose(), P_cond);
+    P_cond += Q;
+
+    multiplyMatricesInPlace(H, P_cond, temp2);
+    multiplyMatricesInPlace(temp2, H.transpose(), S);
+    S += R;
+
 }
 
 
@@ -220,12 +259,69 @@ void ResilientEKF::calculate_posteriors() {
     }
 
     // Calculate the Kalman gain, updated state estimate, and updated covariance estimate
-    K = P_cond * H.transpose() * S_inv;
-    matrix::Matrix<float, 12, 12> P_k_support;
+    // K = P_cond * H.transpose() * S_inv;
+    // matrix::Matrix<float, 12, 12> P_k_support;
+    // P_k_support.setIdentity();
+    // P_k = (P_k_support- K * H) * P_cond;
+    // z = y - H * x_hat_cond;
+    // x_hat = x_hat_cond + K * z;
+
+    multiplyMatricesInPlace(P_cond, H.transpose(), temp3);
+    multiplyMatricesInPlace(temp3, S_inv, K);
     P_k_support.setIdentity();
-    P_k = (P_k_support- K * H) * P_cond;
-    z = y - H * x_hat_cond;
-    x_hat = x_hat_cond + K * z;
-    // res = z.norm();
-    // err = (data.slice<12>(0) - x_hat).norm();
+    multiplyMatricesInPlace(K, H, temp1);
+    multiplyMatricesInPlace(P_k_support - temp1, P_cond, P_k);
+    multiplyMatricesInPlace(H, x_hat_cond, temp4);
+    z = y - temp4;
+    multiplyMatricesInPlace(K, z, temp5);
+    x_hat = x_hat_cond + temp5;
+
+
 }
+
+
+matrix::Vector<float, 12> ResilientEKF::run(bool visual_odom_update_flag) {
+
+    calculate_priors();
+    // return x_hat_cond;
+
+    // Determine whether to do estimation or not
+	// GPS is updated, calculate posteriors
+	if (visual_odom_update_flag){
+	    calculate_posteriors();
+		// x_output = x_hat;
+		x_hat_prev = x_hat;
+		P_prev = P_k;
+	}
+	//// GPS is not updated, calculate priors only
+	else if (!visual_odom_update_flag){
+		// x_output = x_hat_cond;
+	    x_hat_prev = x_hat_cond;
+		P_prev = P_cond;
+	}
+
+    // Update next previous control input and prediction
+	x_cond_prev = x_hat_cond;
+	U_prev = U;
+
+    if(visual_odom_update_flag) return x_hat;
+    else return x_hat_cond;
+
+
+}
+
+// template <size_t M, size_t N, size_t P>
+// void multiplyMatricesInPlace(const matrix::Matrix<float, M, N> &A, const matrix::Matrix<float, N, P> &B, matrix::Matrix<float, M, P> &C) {
+//     // Clear the result matrix to ensure it starts with zeros
+//     C.zero();
+
+//     // Perform the matrix multiplication
+//     for (size_t k = 0; k < N; ++k) {
+//         for (size_t i = 0; i < M; ++i) {
+//             float aik = A(i, k);
+//             for (size_t j = 0; j < P; ++j) {
+//                 C(i, j) += aik * B(k, j);
+//             }
+//         }
+//     }
+// }

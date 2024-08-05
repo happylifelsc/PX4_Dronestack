@@ -1,29 +1,30 @@
+
 #include "ResilientEstimator.hpp"
+#include <drivers/drv_hrt.h> // added by zyl
+#include <px4_platform_common/events.h> // added by zyl
 #include <cmath> // Ensure this is included for powf function
 using namespace matrix;
 
+
+// Define variables for time measurement LUO
+hrt_abstime start_time, end_time;
+uint64_t execution_time;
+
 //------------------------------------------Parameter Initializations------------------------------------------//
-// matrix::Vector<float, 12> x_hat_prev;
-// matrix::Vector<float, 12> x_cond_prev;
-// matrix::Matrix<float, 12, 12> P_prev;
-// matrix::Vector<float, 4> U_prev;
-// matrix::Vector<float, 12> x_output;
 
-// Initialize to zero
-// x_hat_prev.setZero();
-// x_cond_prev.setZero();
-// P_prev.setZero();
-// U_prev.setZero();
-// x_output.setZero();
 
-const float mass = 2.65;
-const float ixx = 0.0257;
-const float iyy = 0.0258;
-const float izz = 0.044;
-const float im = 5.2999e-05;
-const float d = 0.246;
-const float c_t = 1.239e-05;
-const float c_m = 1.982e-07;
+bool ekf_initialized = false; // Flag to indicate whether the EKF object has been created
+ResilientEKF* curr_ekf; // variable for EKF object;
+
+
+constexpr float mass = 2.65;
+constexpr float ixx = 0.0257;
+constexpr float iyy = 0.0258;
+constexpr float izz = 0.044;
+constexpr float im = 5.2999e-05;
+constexpr float d = 0.246;
+constexpr float c_t = 1.239e-05;
+constexpr float c_m = 1.982e-07;
 
 // Define the macro
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -48,25 +49,30 @@ struct TorqueAndThrust {
 };
 
 
-
+// notice: _loop_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")) added by zyl
 ResilientEstimator::ResilientEstimator() :
 	ModuleParams(nullptr),
-	WorkItem(MODULE_NAME, px4::wq_configurations::lp_default)
+	WorkItem(MODULE_NAME, px4::wq_configurations::lp_default),
+	_loop_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": cycle"))
 {
 }
 
 ResilientEstimator::~ResilientEstimator()
 {
-        perf_free(_loop_perf);
+    perf_free(_loop_perf);
 }
 
 bool ResilientEstimator::init()
 {
+	// The problem is here, I think this returns false, and it will disconnect the serial communication if you run this and comment out the
 	if (!_vehicle_attitude_sub.registerCallback())
 	{
 		PX4_ERR("vehicle_attitude callback registration failed!");
 		return false;
 	}
+
+	PX4_INFO("Resilient estimator module started");
+
 	return true;
 }
 
@@ -81,10 +87,16 @@ void ResilientEstimator::Run()
 
 	perf_begin(_loop_perf);
 
-	static auto x_hat_prev = new matrix::Vector<float, 12>();
-	static auto x_cond_prev = new matrix::Vector<float, 12>();
-	static auto P_prev = new matrix::Matrix<float, 12, 12>();
-	static auto U_prev = new matrix::Vector<float, 4>();
+	// Record the start time LUO
+    	start_time = hrt_absolute_time();
+
+	PX4_INFO("resilient estimator is running");
+
+
+	// static auto x_hat_prev = new matrix::Vector<float, 12>();
+	// static auto x_cond_prev = new matrix::Vector<float, 12>();
+	// static auto P_prev = new matrix::Matrix<float, 12, 12>();
+	// static auto U_prev = new matrix::Vector<float, 4>();
 	static auto x_output = new matrix::Vector<float, 12>();
 
 	//----------------------------------------------Time interval----------------------------------------------//
@@ -108,21 +120,21 @@ void ResilientEstimator::Run()
 	//-------------------------------------------------------------------------------------------------------------------------------------------------//
 
 	//----------------------------------GPS and Compass Data from VICON----------------------------------//
-	// static hrt_abstime visual_odom_last_run{0};
+	static hrt_abstime visual_odom_last_run{0};
 	vehicle_odometry_s visual_odom;
 
 	bool visual_odom_update_flag = 0;
 	if (_visual_odometry_sub.update(&visual_odom)) {
 
 
-		// const hrt_abstime visual_odom_last_run_now = visual_odom.timestamp_sample;
-		// const double visual_odom_dt_calculated = (visual_odom_last_run_now - visual_odom_last_run) * 1e-6f;
-		// visual_odom_last_run = visual_odom_last_run_now;
+		const hrt_abstime visual_odom_last_run_now = visual_odom.timestamp_sample;
+		const double visual_odom_dt_calculated = (visual_odom_last_run_now - visual_odom_last_run) * 1e-6f;
+		visual_odom_last_run = visual_odom_last_run_now;
 
 		visual_odom_update_flag = 1;
-		// PX4_INFO("ROS visual odometry: Delta_t (dt: %f) Position (X: %f, Y: %f, Z: %f); Quaternion (q_w: %f, q_x: %f, q_y: %f, q_z: %f)",
-		// 	(double)visual_odom_dt_calculated, (double)visual_odom.position[0], (double)visual_odom.position[1], (double)visual_odom.position[2],
-		// 	(double)visual_odom.q[0], (double)visual_odom.q[1], (double)visual_odom.q[2], (double)visual_odom.q[3]);
+		PX4_INFO("ROS visual odometry: Delta_t (dt: %f) Position (X: %f, Y: %f, Z: %f); Quaternion (q_w: %f, q_x: %f, q_y: %f, q_z: %f)",
+			(double)visual_odom_dt_calculated, (double)visual_odom.position[0], (double)visual_odom.position[1], (double)visual_odom.position[2],
+			(double)visual_odom.q[0], (double)visual_odom.q[1], (double)visual_odom.q[2], (double)visual_odom.q[3]);
 
 	}
 
@@ -143,13 +155,6 @@ void ResilientEstimator::Run()
 		}
 	}
 
-	PX4_INFO("RSE rotor speed w_0: %.2f", (double)w_gazebo(0));
-	PX4_INFO("RSE rotor speed w_1: %.2f", (double)w_gazebo(1));
-	PX4_INFO("RSE rotor speed w_2: %.2f", (double)w_gazebo(2));
-	PX4_INFO("RSE rotor speed w_3: %.2f", (double)w_gazebo(3));
-
-	// // std::cout << "v_gazebo: " << v_gazeno_enu << std::endl;
-
 
 
 	matrix::Vector3f v_gazeno_enu{(visual_odom.position[0] - prev_visual_odom.position[0]) / (float)dt_calculated, (visual_odom.position[1] - prev_visual_odom.position[1]) / (float)dt_calculated, (visual_odom.position[2] - prev_visual_odom.position[2]) / (float)dt_calculated};
@@ -168,10 +173,6 @@ void ResilientEstimator::Run()
 	// gazebo_cal_torque(2) = -1 * gazebo_cal_torque(2);
 	// // gazebo_cal_force = -1 * gazebo_cal_force;
 
-	// std::cout << "Estimated torque x: " << gazebo_cal_torque(0) << std::endl;
-	// std::cout << "Estimated torque y: " << gazebo_cal_torque(1) << std::endl;
-	// std::cout << "Estimated torque z: " << gazebo_cal_torque(2) << std::endl;
-	// std::cout << "Estimated thrust : " << gazebo_cal_force << std::endl;
 
 	//----------------------------------Incorporate the data----------------------------------//
 	// Define the 16-dimensional vector
@@ -202,7 +203,6 @@ void ResilientEstimator::Run()
 	(*curr_data)(15) = gazebo_cal_force(2); // thrust
 
 
-	// std::cout << "curr_data: " << curr_data << std::endl;
 
 	//----------------------------------Resilient EKF Parameters----------------------------------//
 	double dt = dt_calculated;
@@ -210,108 +210,84 @@ void ResilientEstimator::Run()
 	int n_control = 4; // Number of control inputs
 	int n_obs = 7; // Number of observations
 
-	matrix::Matrix<float, 7, 12>* obs_matrix = new matrix::Matrix<float, 7, 12>();
-	obs_matrix->zero();
-	if (n_obs == 7) {
-		(*obs_matrix)(0, 2) = 1.0f;
-		(*obs_matrix)(1, 6) = 1.0f;
-		(*obs_matrix)(2, 7) = 1.0f;
-		(*obs_matrix)(3, 8) = 1.0f;
-		(*obs_matrix)(4, 9) = 1.0f;
-		(*obs_matrix)(5, 10) = 1.0f;
-		(*obs_matrix)(6, 11) = 1.0f;
-	}
 
-	// Initialize the process noise matrix (process_noise_matrix)
-	matrix::Matrix<float, 12, 12>* noise_identity_matrix = new matrix::Matrix<float, 12, 12>();
-	noise_identity_matrix->setIdentity();
-	matrix::Matrix<float, 12, 12>* process_noise_matrix = new matrix::Matrix<float, 12, 12>(0.01f * (*noise_identity_matrix));
-
-	// Initialize the observation noise matrix (obs_noise_matrix)
-	matrix::Matrix<float, 7, 7>* obs_noise_matrix = new matrix::Matrix<float, 7, 7>();
-	obs_noise_matrix->zero();
-		(*obs_noise_matrix)(0, 0) = 0.01f;
-	for (int i = 1; i < 4; ++i) {
-		(*obs_noise_matrix)(i, i) = 0.01f;
-	}
-	for (int i = 4; i < n_obs; ++i) {
-		(*obs_noise_matrix)(i, i) = 0.01f;
-	}
 	//----------------------------------Initialize Resilient EKF----------------------------------//
-	ResilientEKF* curr_ekf = new ResilientEKF(*curr_data, dt, n_states, n_control, n_obs, *obs_matrix, *process_noise_matrix, *obs_noise_matrix, mass, ixx, iyy, izz, im, d, c_t, c_m);
+	// delete: *obs_matrix, *process_noise_matrix, *obs_noise_matrix,
 
-	// // Update previous data
-	curr_ekf->update_previous_data(*x_hat_prev, *x_cond_prev, *U_prev, *P_prev);
 
-	// // Calculate priors
-	curr_ekf->calculate_priors();
 
-	// Determine whether to do estimation or not
-	//// GPS is updated, calculate posteriors
-	if (visual_odom_update_flag){
-		curr_ekf->calculate_posteriors();
-		*x_output = curr_ekf->x_hat;
-		*x_hat_prev = curr_ekf->x_hat;
-		*P_prev = curr_ekf->P_k;
+	if (!ekf_initialized) {
+		curr_ekf = new ResilientEKF(*curr_data, dt, n_states, n_control, n_obs, mass, ixx, iyy, izz, im, d, c_t, c_m);
+		ekf_initialized = true;
+	}
+	else {
+		curr_ekf->data = *curr_data;
+		curr_ekf->dt = dt;
 	}
 
-	//// GPS is not updated, calculate priors only
-	else if (!visual_odom_update_flag){
-		*x_output = curr_ekf->x_hat_cond;
-		*x_hat_prev = curr_ekf->x_hat_cond;
-		*P_prev = curr_ekf->P_cond;
-	}
+	*x_output = curr_ekf->run(visual_odom_update_flag);
 
+	PX4_INFO("%f", (double)curr_ekf->x_hat(0));
+	// // // Update previous data
+	// curr_ekf->update_previous_data(*x_hat_prev, *x_cond_prev, *U_prev, *P_prev);
+
+	// // // Calculate priors
+	// curr_ekf->calculate_priors();
+
+	// // Determine whether to do estimation or not
+	// //// GPS is updated, calculate posteriors
+	// if (visual_odom_update_flag){
+	// 	curr_ekf->calculate_posteriors();
+	// 	*x_output = curr_ekf->x_hat;
+	// 	*x_hat_prev = curr_ekf->x_hat;
+	// 	*P_prev = curr_ekf->P_k;
+	// }
+
+	// //// GPS is not updated, calculate priors only
+	// else if (!visual_odom_update_flag){
+	// 	*x_output = curr_ekf->x_hat_cond;
+	// 	*x_hat_prev = curr_ekf->x_hat_cond;
+	// 	*P_prev = curr_ekf->P_cond;
+	// }
+
+	// // Update next previous control input and prediction
+	// *x_cond_prev = curr_ekf->x_hat_cond;
+	// *U_prev = curr_ekf->U;
 
 	// Update the next previous visual_odom
-	prev_visual_odom = visual_odom;
+	// prev_visual_odom = visual_odom;
 
-	// Update next previous control input and prediction
-	*x_cond_prev = curr_ekf->x_hat_cond;
-	*U_prev = curr_ekf->U;
 
-	matrix::Vector4f quaternion_output = ResilientEstimator::eulerToQuaternionVector((*x_output)(0), (*x_output)(1), (*x_output)(2));
+	quaternion_output = ResilientEstimator::eulerToQuaternionVector((*x_output)(0), (*x_output)(1), (*x_output)(2));
 
-	// PX4_INFO("RSE roll: %.3f", static_cast<double>(x_output(0)));
-	// PX4_INFO("RSE pitch: %.3f", static_cast<double>(x_output(1)));
-
-	// PX4_INFO("Estimated q_0: %.3f", static_cast<double>(quaternion_output(0)));
-	// PX4_INFO("Estimated q_1: %.3f", static_cast<double>(quaternion_output(1)));
-	// PX4_INFO("Estimated q_2: %.3f", static_cast<double>(quaternion_output(2)));
-	// PX4_INFO("Estimated q_3: %.3f", static_cast<double>(quaternion_output(3)));
 
 	// Filter angular velocity estimate before sending out
-	Vector3f angular_velocity_output_raw{(float)(*x_output)(3), (float)(*x_output)(4), (float)(*x_output)(5)};
-	// Vector3f angular_velocity_output_filtered{_lp_filter_velocity.apply(angular_velocity_output_raw)};
-	Vector3f angular_velocity_output_filtered{angular_velocity_output_raw(0), angular_velocity_output_raw(1), angular_velocity_output_raw(2)};
+	// discard: // Vector3f angular_velocity_output_filtered{_lp_filter_velocity.apply(angular_velocity_output_raw)};
+
+	angular_velocity_output_raw = {static_cast<float>((*x_output)(3)), static_cast<float>((*x_output)(4)), static_cast<float>((*x_output)(5))};
+	angular_velocity_output_filtered = {angular_velocity_output_raw(0), angular_velocity_output_raw(1), angular_velocity_output_raw(2)};
 
 	// Calculate angular acceleration and send out
-	robust_angular_acceleration_s robust_angular_acc;
 	robust_angular_acc.timestamp = hrt_absolute_time();
 
-	matrix::Vector3f angular_velocity_output_filtered_vector{angular_velocity_output_filtered(0), angular_velocity_output_filtered(1), angular_velocity_output_filtered(2)};
-	matrix::Vector3f torque_vector{gazebo_cal_torque(0), gazebo_cal_torque(1), gazebo_cal_torque(2)};
+
+	angular_velocity_output_filtered_vector = {angular_velocity_output_filtered(0), angular_velocity_output_filtered(1), angular_velocity_output_filtered(2)};
+	torque_vector = {gazebo_cal_torque(0), gazebo_cal_torque(1), gazebo_cal_torque(2)};
 
 	// Calculate the robust angular acceleration vector using the updated function
-	matrix::Vector3f robust_angular_acc_vector = ResilientEstimator::calculate_angular_acc_from_dynamics(angular_velocity_output_filtered_vector, torque_vector);
-
-	// PX4_INFO("Estimated w_x: %.3f", static_cast<double>(angular_velocity_output_filtered(0)));
-	// PX4_INFO("Estimated w_y: %.3f", static_cast<double>(angular_velocity_output_filtered(1)));
-	// PX4_INFO("Estimated w_z: %.3f", static_cast<double>(angular_velocity_output_filtered(2)));
-
-	// PX4_INFO("Estimated w_x_dot: %.3f", static_cast<double>(robust_angular_acc_vector(0)));
-	// PX4_INFO("Estimated w_y_dot: %.3f", static_cast<double>(robust_angular_acc_vector(1)));
-	// PX4_INFO("Estimated w_z_dot: %.3f", static_cast<double>(robust_angular_acc_vector(2)));
+	robust_angular_acc_vector = ResilientEstimator::calculate_angular_acc_from_dynamics(angular_velocity_output_filtered_vector, torque_vector);
 
 
 	//-------------------------------------------------------------------------------------------------------------------------------------------------//
 	//--------------------------------------------------------Construct Robust Attitude Message--------------------------------------------------------//
 	//-------------------------------------------------------------------------------------------------------------------------------------------------//
 	// Gather ground truth data for comparison
-	// imu_attack_s imu_attack;
-	// if (_imu_attack_sub.update(&imu_attack)){
+	imu_attack_s imu_attack;
+	if (_imu_attack_sub.update(&imu_attack)){
 
-	// }
+	}
+
+	// Optional
 	sensor_accel_s raw_accel;
 	if (_sensor_accel_sub.update(&raw_accel)){
 
@@ -332,10 +308,10 @@ void ResilientEstimator::Run()
 	}
 
 	// Publish the robust_attitude message
-	robust_attitude_s robust_att;
 	robust_att.timestamp = hrt_absolute_time();
 
-	const int resilient_control_level = 3;
+
+	constexpr int resilient_control_level = 3;
 	// Standard control (PX4 LPF)
 	if (resilient_control_level == 0)
 	{
@@ -368,12 +344,14 @@ void ResilientEstimator::Run()
 
 	}
 
+	// Print for skipping the unused variable checking
+	PX4_INFO("%f", (double)robust_att.timestamp);
+	PX4_INFO("%f", (double)robust_angular_acc.timestamp);
 
 	//-------------------------------------------------------------------------------------------------------------------------------------------------//
 	//----------------------------------------------------------------Anomaly Detection----------------------------------------------------------------//
 	//-------------------------------------------------------------------------------------------------------------------------------------------------//
 	// Comparing the estimate redisual
-	matrix::Vector3f angular_velocity_estimate_residuals;
 	angular_velocity_estimate_residuals(0) = angular_velocity_output_filtered(0) - angular_velocity.xyz[0];
 	angular_velocity_estimate_residuals(1) = angular_velocity_output_filtered(1) - angular_velocity.xyz[1];
 	angular_velocity_estimate_residuals(2) = angular_velocity_output_filtered(2) - angular_velocity.xyz[2];
@@ -390,14 +368,15 @@ void ResilientEstimator::Run()
 
 	static double cusum = 0.0;
 	static double detection_rate = 0.0;
-	const double reference_value = 0.0;
-	const double threshold_standard = 1.4;
-	const double k_value = 1.5;
+	constexpr double reference_value = 0.0;
+	constexpr double threshold_standard = 1.4;
+	constexpr double k_value = 1.5;
 
-	// static matrix::Vector<int, 1000> cusum_window;
-	static matrix::Vector<int, 1000>* cusum_window = new matrix::Vector<int, 1000>();
+
+	// CUSUM window: optional
+
 	double cusum_deviation = angular_velocity_estimate_residual_norm - reference_value;
-	// PX4_INFO("CUSUM deviation: %.2f", cusum_deviation);
+	PX4_INFO("CUSUM deviation: %.2f", cusum_deviation);
 
 	// Update CUSUM statistics
 	cusum += (cusum_deviation - k_value);
@@ -405,33 +384,31 @@ void ResilientEstimator::Run()
 	if (cusum < 0){
 		cusum = 0;
 	}
-	// cusum = max(0.0, cusum);
+
+	cusum = MAX(0.0, cusum);
 
 	if (cusum > threshold_standard) {
 		ResilientEstimator::SlidingWindowResult detection_result = ResilientEstimator::sliding_window_detection(cusum_window, 1000, 1);
-		delete cusum_window;
-		cusum_window = detection_result.window;
+		cusum_window = *detection_result.window;
 		detection_rate = detection_result.anomaly_percentage;
 		cusum = 0;
 	}
 	else {
 		ResilientEstimator::SlidingWindowResult detection_result = ResilientEstimator::sliding_window_detection(cusum_window, 1000, 0);
-		delete cusum_window;
-		cusum_window = detection_result.window;
+		cusum_window = *detection_result.window;
 		detection_rate = detection_result.anomaly_percentage;
 	}
 
-	// PX4_INFO("CUSUM value: %.2f", cusum);
-	// PX4_INFO("Detection rate: %.2f", detection_rate);
+	PX4_INFO("Detection rate: %.2f", detection_rate);
+	// PX4_INFO("CUSUM value: %.2f", cus_resilient_state_estimate_pubum);
 
 	// std::cout << "Estimate residual wx: " << angular_velocity_output_filtered(0) - angular_velocity.xyz[0] << std::endl;
 	// std::cout << "Estimate residual wy: " << angular_velocity_output_filtered(1) - angular_velocity.xyz[1] << std::endl;
 	// std::cout << "Estimate residual wz: " << angular_velocity_output_filtered(2) - angular_velocity.xyz[2] << std::endl;
 
 	//----------------------------------------------Control Mode Switch---------------------------------------------//
-	anomaly_detection_s anomaly_detection_msg;
 	anomaly_detection_msg.timestamp = hrt_absolute_time();
-	if (detection_rate < 0.005 && current_time > 23.0)
+	if (detection_rate > 0.00 && current_time > 23.0)
 	{
 		anomaly_detection_msg.anomaly_flag = 0;
 		// PX4_INFO("Anomaly detected!");
@@ -439,17 +416,18 @@ void ResilientEstimator::Run()
 	else{
 		anomaly_detection_msg.anomaly_flag = 0;
 	}
+
 	_anomaly_detection_pub.publish(anomaly_detection_msg);
 
-	//----------------------------------------------Publish to Attitude Controller---------------------------------------------//
+	// ----------------------------------------------Publish to Attitude Controller---------------------------------------------//
 	if (!anomaly_detection_msg.anomaly_flag)
 	{
 		// PX4_INFO("Standard control");
 	}
 	else
 	{
-		// PX4_INFO("Resilient control activated");
-		_robust_attitude_pub.publish(robust_att);
+		// // PX4_INFO("Resilient control activated");
+		_robust_attitude_pub.publish(robust_att); // sending this message can lead to memory overflow
 		_robust_angular_acc_pub.publish(robust_angular_acc);
 	}
 
@@ -457,28 +435,26 @@ void ResilientEstimator::Run()
 	//-------------------------------------------------------------------------------------------------------------------------------------------------//
 	//------------------------------------------------------Logging Resilient State Estimate Data------------------------------------------------------//
 	//-------------------------------------------------------------------------------------------------------------------------------------------------//
-	resilient_state_estimate_s resilient_state_estimate_msg;
+
 	resilient_state_estimate_msg.timestamp = hrt_absolute_time();
 
 	// Gazebo rotor speed, torques and thrust
-	// resilient_state_estimate_msg.rotor_speed[0] = w_gazebo(0);
-	// resilient_state_estimate_msg.rotor_speed[1] = w_gazebo(1);
-	// resilient_state_estimate_msg.rotor_speed[2] = w_gazebo(2);
-	// resilient_state_estimate_msg.rotor_speed[3] = w_gazebo(3);
+	resilient_state_estimate_msg.rotor_speed[0] = w_gazebo(0);
+	resilient_state_estimate_msg.rotor_speed[1] = w_gazebo(1);
+	resilient_state_estimate_msg.rotor_speed[2] = w_gazebo(2);
+	resilient_state_estimate_msg.rotor_speed[3] = w_gazebo(3);
 
+	// // do not know where to get torques ground truth;
 	// resilient_state_estimate_msg.torque_ground_truth[0] = torques_from_gazebo.xyz[0];
 	// resilient_state_estimate_msg.torque_ground_truth[1] = torques_from_gazebo.xyz[1];
 	// resilient_state_estimate_msg.torque_ground_truth[2] = torques_from_gazebo.xyz[2];
 
+	// add by me
 	vehicle_global_position_s vehicle_global_position;
 	_gpos_ground_truth_sub.update(&vehicle_global_position);
 
 	vehicle_acceleration_s vehicle_acceleration;
 	_vehicle_acceleration_sub.update(&vehicle_acceleration);
-
-	imu_attack_s imu_attack;
-	_imu_attack_sub.update(&imu_attack);
-
 
 	resilient_state_estimate_msg.thrust_ground_truth = vehicle_global_position.alt;
 
@@ -496,13 +472,9 @@ void ResilientEstimator::Run()
 	resilient_state_estimate_msg.imu_angular_vel[1] = angular_velocity.xyz[1];
 	resilient_state_estimate_msg.imu_angular_vel[2] = angular_velocity.xyz[2];
 
-	// resilient_state_estimate_msg.imu_acc[0] = vehicle_acceleration.xyz[0];
-	// resilient_state_estimate_msg.imu_acc[1] = vehicle_acceleration.xyz[1];
-	// resilient_state_estimate_msg.imu_acc[2] = vehicle_acceleration.xyz[2];
-
-	resilient_state_estimate_msg.imu_acc[0] = 9999999;
-	resilient_state_estimate_msg.imu_acc[1] = 8888888;
-	resilient_state_estimate_msg.imu_acc[2] = 7777777;
+	resilient_state_estimate_msg.imu_acc[0] = vehicle_acceleration.xyz[0];
+	resilient_state_estimate_msg.imu_acc[1] = vehicle_acceleration.xyz[1];
+	resilient_state_estimate_msg.imu_acc[2] = vehicle_acceleration.xyz[2];
 
 	// Standard estimates
 	resilient_state_estimate_msg.attitude_standard[0] =  v_att.q[0];
@@ -542,76 +514,64 @@ void ResilientEstimator::Run()
 	resilient_state_estimate_msg.attack_flag = imu_attack.attack_flag;
 
 	// Publish resilient estimate message
+
+	PX4_INFO("check resilient_state_estimate_msg: %.2f", (double)resilient_state_estimate_msg.imu_acc[0]);
 	_resilient_state_estimate_pub.publish(resilient_state_estimate_msg);
 
-
-
-
-
-	delete x_hat_prev;
-	delete x_cond_prev;
-	delete P_prev;
-	delete U_prev;
-	delete x_output;
+	// delete x_hat_prev;
+	// delete x_cond_prev;
+	// delete P_prev;
+	// delete U_prev;
+	// delete x_output;
 	delete euler_from_visual;
-	delete obs_matrix;
-	delete noise_identity_matrix;
-	delete process_noise_matrix;
-	delete obs_noise_matrix;
+	// delete obs_matrix;
+	// delete noise_identity_matrix;
+	// delete process_noise_matrix;
+	// delete obs_noise_matrix;
 	delete curr_data;
 	delete curr_ekf;
+
+
+	// Record the end time LUO
+    	end_time = hrt_absolute_time();
+
+	 // Calculate the execution time LUO
+    	execution_time = end_time - start_time;
+
+    	// Log the execution time LUO
+    	PX4_INFO("Execution time: %" PRIu64 " us", execution_time);
+
 	perf_end(_loop_perf);
 }
 
 
-// ResilientEstimator::SlidingWindowResult ResilientEstimator::sliding_window_detection(matrix::Vector<int, 1000>& window, size_t window_size, int new_score) {
-//     // Shift elements to the left and append the new score at the end
-//     for (size_t i = 0; i < window_size - 1; i++) {
-//         window(i) = window(i + 1);
-//     }
-//     window(window_size - 1) = new_score;
+ResilientEstimator::SlidingWindowResult ResilientEstimator::sliding_window_detection(matrix::Vector<int, 1000>& window, size_t window_size, int new_score) {
+    // Update the window with the new score without shifting
+    // Circular buffer technique to maintain constant time complexity
+    static size_t start_index = 0;
 
-//     // Calculate the percentage of anomalies (assuming anomalies are represented by the score of 1)
-//     int count_anomalies = 0;
-//     for (size_t i = 0; i < window_size; i++) {
-//         if (window(i) == 1) {
-//             count_anomalies++;
-//         }
-//     }
+    window(start_index) = new_score;
 
-
-//     double anomaly_percentage = static_cast<double>(count_anomalies) / window_size;
-
-//     // Return the updated window and the anomaly percentage
-//     SlidingWindowResult result;
-//     result.window = window;
-//     result.anomaly_percentage = anomaly_percentage;
-//     return result;
-// }
-
-ResilientEstimator::SlidingWindowResult ResilientEstimator::sliding_window_detection(matrix::Vector<int, 1000>* window, size_t window_size, int new_score) {
-    // Shift elements to the left and append the new score at the end
-    for (size_t i = 0; i < window_size - 1; i++) {
-        (*window)(i) = (*window)(i + 1);
-    }
-    (*window)(window_size - 1) = new_score;
+    // Move the start index forward and wrap around if necessary
+    start_index = (start_index + 1) % window_size;
 
     // Calculate the percentage of anomalies (assuming anomalies are represented by the score of 1)
     int count_anomalies = 0;
     for (size_t i = 0; i < window_size; i++) {
-        if ((*window)(i) == 1) {
+        if (window(i) == 1) {
             count_anomalies++;
         }
     }
 
     double anomaly_percentage = static_cast<double>(count_anomalies) / window_size;
 
-    // Return the updated window and the anomaly percentage
+    // Return the updated window reference and the anomaly percentage
     SlidingWindowResult result;
-    result.window = new matrix::Vector<int, 1000>(*window);
+    result.window = &window; // Return reference instead of a new copy
     result.anomaly_percentage = anomaly_percentage;
     return result;
 }
+
 
 matrix::Vector3f ResilientEstimator::quaternionToEuler(double q0, double q1, double q2, double q3) {
     matrix::Vector3f euler;
@@ -636,41 +596,40 @@ matrix::Vector3f ResilientEstimator::quaternionToEuler(double q0, double q1, dou
     return euler;
 }
 
-
 matrix::Vector4f ResilientEstimator::eulerToQuaternionVector(double roll, double pitch, double yaw) {
-    // Create the quaternion from Euler angles (roll, pitch, yaw)
-    matrix::Quatf q(matrix::Eulerf(roll, pitch, yaw));
+    // Create and normalize the quaternion from Euler angles (roll, pitch, yaw)
+    q = matrix::Quatf(matrix::Eulerf(roll, pitch, yaw)).normalized();
 
-    // Normalize the quaternion to ensure it represents a valid rotation
-    q.normalize();
-
-    // Convert the quaternion to a matrix::Vector4f with (w, x, y, z) ordering
-    matrix::Vector4f quaternionVector(q(0), q(1), q(2), q(3));
+    // Update the static quaternion with the new values
+    quaternionVector(0) = q(0);
+    quaternionVector(1) = q(1);
+    quaternionVector(2) = q(2);
+    quaternionVector(3) = q(3);
 
     return quaternionVector;
 }
 
+matrix::Vector3f ResilientEstimator::calculate_angular_acc_from_dynamics(const matrix::Vector3f& angular_vels, const matrix::Vector3f& torques) {
 
-matrix::Vector3f ResilientEstimator::calculate_angular_acc_from_dynamics(matrix::Vector3f angular_vels, matrix::Vector3f torques) {
-    matrix::Vector3f angular_accs(0.0f, 0.0f, 0.0f);
+    constexpr float Ixx = 0.011f;
+    constexpr float Iyy = 0.015f;
+    constexpr float Izz = 0.021f;
+    constexpr float Im = 5.7823e-06f;
+    constexpr float a1 = (Iyy - Izz) / Ixx;
+    constexpr float a2 = (Izz - Ixx) / Iyy;
+    constexpr float a3 = (Ixx - Iyy) / Izz;
+    constexpr float b1 = 1.0f / Ixx;
+    constexpr float b2 = 1.0f / Iyy;
+    constexpr float b3 = 1.0f / Izz;
 
-    float Ixx = 0.011;
-    float Iyy = 0.015;
-    float Izz = 0.021;
-    float Im = 5.7823e-06;
-    float a1 = (Iyy - Izz) / Ixx;
-    float a2 = (Izz - Ixx) / Iyy;
-    float a3 = (Ixx - Iyy) / Izz;
-    float b1 = 1 / Ixx;
-    float b2 = 1 / Iyy;
-    float b3 = 1 / Izz;
-
-    angular_accs(0) = a1 * angular_vels(1) * angular_vels(2) - Im * 10 * angular_vels(1) + b1 * torques(0);
-    angular_accs(1) = a2 * angular_vels(0) * angular_vels(2) + Im * 10 * angular_vels(0) + b2 * torques(1);
+    matrix::Vector3f angular_accs;
+    angular_accs(0) = a1 * angular_vels(1) * angular_vels(2) - Im * 10.0f * angular_vels(1) + b1 * torques(0);
+    angular_accs(1) = a2 * angular_vels(0) * angular_vels(2) + Im * 10.0f * angular_vels(0) + b2 * torques(1);
     angular_accs(2) = a3 * angular_vels(0) * angular_vels(1) + b3 * torques(2);
 
     return angular_accs;
 }
+
 
 
 
@@ -680,17 +639,17 @@ ResilientEstimator::TorqueAndThrust ResilientEstimator::calculate_individual_tor
 
 
     //--------------------------------------------------Rotor parameters--------------------------------------------------//
-    const double motor_constant = 8.54858e-6;
-    const double rotor_drag_constant = 0.000806428;
-    const double moment_constant = 0.06;
-    const double rolling_moment_constant = 1e-6;
-    const matrix::Vector3f joint_axis(0, 0, 1);
+    constexpr double motor_constant = 8.54858e-6;
+    constexpr double rotor_drag_constant = 0.000806428;
+    constexpr double moment_constant = 0.06;
+    constexpr double rolling_moment_constant = 1e-6;
+    static const matrix::Vector3f joint_axis(0, 0, 1);
 
     // CAi (Rotor positions)
-    const matrix::Vector3f ca_0(0.174, -0.174, 0.06);
-    const matrix::Vector3f ca_1(-0.174, 0.174, 0.06);
-    const matrix::Vector3f ca_2(0.174, 0.174, 0.06);
-    const matrix::Vector3f ca_3(-0.174, -0.174, 0.06);
+    static const matrix::Vector3f ca_0(0.174, -0.174, 0.06);
+    static const matrix::Vector3f ca_1(-0.174, 0.174, 0.06);
+    static const matrix::Vector3f ca_2(0.174, 0.174, 0.06);
+    static const matrix::Vector3f ca_3(-0.174, -0.174, 0.06);
 
     //--------------------------------------------------Rotor forces--------------------------------------------------//
     matrix::Vector3f rotor_forces[4];
@@ -740,6 +699,7 @@ ResilientEstimator::TorqueAndThrust ResilientEstimator::calculate_individual_tor
     }
 
     //--------------------------------------------------Compensate the torques--------------------------------------------------//
+// // discard for now
 //     double torque_x_bias = 0; // For hovering
 //     double torque_y_bias = 0.014 + 0.02 * velocity(0); // For hovering
 //     // double torque_y_bias = 0.010 + 0.025 * velocity(0); // For moving at 0.5m/s
@@ -761,15 +721,19 @@ ResilientEstimator::TorqueAndThrust ResilientEstimator::calculate_individual_tor
 //----------------------------------------------------------------------------------------------------------------------------------------//
 //---------------------------------------------------------PX4 Internal Functions---------------------------------------------------------//
 //----------------------------------------------------------------------------------------------------------------------------------------//
+
 int ResilientEstimator::task_spawn(int argc, char *argv[])
 {
-        ResilientEstimator *instance = new ResilientEstimator();
+    ResilientEstimator *instance = new ResilientEstimator();
 
 	if (instance) {
 		_object.store(instance);
+
+
 		_task_id = task_id_is_work_queue;
 
 		if (instance->init()) {
+			PX4_INFO("check if task_spawn ran init");
 			return PX4_OK;
 		}
 
@@ -836,7 +800,9 @@ $ mc_resilient_estimator status
 	return 0;
 }
 
-int mc_resilient_estimator_main(int argc, char *argv[])
+extern "C" __EXPORT int mc_resilient_estimator_main(int argc, char *argv[])
 {
+
 	return ResilientEstimator::main(argc, argv);
+
 }

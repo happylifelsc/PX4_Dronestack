@@ -1,2 +1,0 @@
-
-set(UCLIENT_SUPERBUILD "OFF" CACHE BOOL "Initial cache" FORCE)

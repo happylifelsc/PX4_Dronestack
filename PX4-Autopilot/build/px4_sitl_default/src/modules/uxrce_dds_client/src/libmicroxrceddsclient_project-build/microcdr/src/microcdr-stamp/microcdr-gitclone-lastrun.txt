@@ -1,3 +1,0 @@
-repository='https://github.com/eProsima/Micro-CDR.git'
-module=''
-tag='origin'

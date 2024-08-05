@@ -1,1 +1,0 @@
-/home/cpsl/PX4-Autopilot/Tools/simulation/jmavsim/jmavsim_run.sh

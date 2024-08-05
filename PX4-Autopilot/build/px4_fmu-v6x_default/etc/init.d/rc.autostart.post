@@ -1,7 +1,0 @@
-set AIRFRAME none
-if [ ${AIRFRAME} != none ]
-then
-echo "Loading airframe: /etc/init.d/airframes/${AIRFRAME}"
-. /etc/init.d/airframes/${AIRFRAME}
-fi
-unset AIRFRAME
